@@ -20,7 +20,7 @@
   (test-case
    "Test a quantifier over integers"
    (smt:with-context
-    (smt:new-context #:mbqi? #t)
+    (smt:new-context)
     (smt:declare-fun f (Int Int) Int)
     (smt:declare-fun a () Int)
     (smt:declare-fun b () Int)

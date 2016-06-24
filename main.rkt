@@ -7,7 +7,7 @@
          "builtins.rkt"
          "derived.rkt")
 
-(define z3-default-overrides #hasheq((#:macro-finder? . #t)))
+(define z3-default-overrides #hasheq())
 
 (define (new-context-proc kws kw-args . rest)
   (unless (null? rest)
