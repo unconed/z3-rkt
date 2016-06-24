@@ -84,9 +84,8 @@
     [(_ name : type ...)
      (begin
        (define (name . args)
-         (apply (get-ffi-obj (regexp-replaces 'name '((#rx"-" "_")
-                                                      (#rx"^" "Z3_")
-                                                      (#rx"!$" "")))
+         (apply (get-ffi-obj (regexp-replaces (format "Z3_~a" 'name) '((#rx"-" "_")
+                                                                       (#rx"!$" "")))
                              libz3 (_fun type ...)) args))
        (provide name))]))
 (define-syntax defz3-wrapped
@@ -96,9 +95,8 @@
        (define name
          (wrapper
           (lambda args
-            (apply (get-ffi-obj (regexp-replaces 'name '((#rx"-" "_")
-                                                         (#rx"^" "Z3_")
-                                                         (#rx"!$" "")))
+            (apply (get-ffi-obj (regexp-replaces (format "Z3_~a" 'name) '((#rx"-" "_")
+                                                                          (#rx"!$" "")))
                                 libz3 (_fun type ...)) args))))
        (provide name))]))
 
