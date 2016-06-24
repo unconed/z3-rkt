@@ -29,3 +29,6 @@
     (smt:assert (>/s a 0))
     (check-eq? (smt:check-sat) 'sat)
     (check-eq? (smt:eval (f (+/s a 10) 20)) 12))))
+
+(require rackunit/text-ui)
+(run-tests test-integers)
