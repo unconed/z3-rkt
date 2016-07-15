@@ -92,6 +92,8 @@
 (define-syntax-rule (declare-fun fn args ...)
   (define fn (make-uninterpreted (symbol->string 'fn) 'args ...)))
 
+(define-syntax-rule (declare-const c T) (declare-fun c () T))
+
 (define-syntax-rule (make-fun args ...)
   (make-uninterpreted "" 'args ...))
 
@@ -159,6 +161,7 @@
    with-context
    declare-datatypes
    declare-sort
+   declare-const
    declare-fun
    make-fun
    make-fun/vector
