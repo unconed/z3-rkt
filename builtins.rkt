@@ -35,7 +35,7 @@
 ;; in a right-associative manner.
 (define (rassoc fn)
   (λ args
-    (define-values (args* argn) (split-at-right args 1))
+    (match-define-values (args* (list argn)) (split-at-right args 1))
     (foldr fn argn args*)))
 
 (define (flip fn) (λ (x y) (fn y x)))
