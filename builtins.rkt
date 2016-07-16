@@ -3,15 +3,12 @@
 (require (prefix-in z3: "z3-wrapper.rkt")
          "utils.rkt"
          "parser.rkt")
-(require racket/list)
+(require racket/list
+         racket/match)
 
 ;; Initialize builtins. (The current context is assumed to be a parameter.)
 (define (init-builtins)
-  (define-values (context vals sorts)
-    (values
-     (ctx)
-     (z3ctx-vals (current-context-info))
-     (z3ctx-sorts (current-context-info))))
+  (match-define (z3ctx context vals sorts _) (current-context-info))
   (for ([(k fn) (in-hash builtin-sorts)])
     (new-sort! k (fn context)))
   ;; XXX This is a giant hack and needs to be generalized.
@@ -37,16 +34,17 @@
 ;; Wraps a binary function so that arguments are processed
 ;; in a right-associative manner.
 (define (rassoc fn)
-  (lambda args
-    (foldr fn (last args) (drop-right args 1))))
+  (λ args
+    (define-values (args* argn) (split-at-right args 1))
+    (foldr fn argn args*)))
 
-(define (flip fn) (lambda (x y) (fn y x)))
+(define (flip fn) (λ (x y) (fn y x)))
 
 ;; Wraps a binary function so that arguments are processed
 ;; in a left-associative manner. Note that foldl calls functions
 ;; in their reverse order, so we flip the arguments to fix that.
 (define (lassoc fn)
-  (lambda (fst . rst)
+  (λ (fst . rst)
     (foldl (flip fn) fst rst)))
 
 ;; Builtin symbols
@@ -91,8 +89,10 @@
 
 ;; forall. The syntax is (forall/s (list of bound variables) expression).
 (define-syntax-rule (forall/s ((varname vartype) ...) expr)
-  (let ([varname (z3:mk-fresh-const (ctx) (symbol->string 'varname)
+  (let ([varname (z3:mk-fresh-const (ctx)
+                                    (symbol->string 'varname)
                                     (smt:internal:sort-expr->_z3-sort 'vartype))] ...)
     `(@app forall (,varname ...) ,expr)))
 (hash-set! builtin-vals 'forall (λ (ctx bound-consts expr) (z3:mk-forall-const ctx 0 bound-consts '() expr)))
-(provide forall/s)
+(provide forall/s
+         (rename-out [forall/s ∀/s]))

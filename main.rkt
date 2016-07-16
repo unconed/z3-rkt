@@ -14,11 +14,10 @@
     (apply raise-arity-error 'smt:new-context 0 rest))
   (define config (z3:mk-config))
   (define params (hash-copy z3-default-overrides))
-  (for ([kw (in-list kws)]
+  (for ([kw     (in-list kws    )]
         [kw-arg (in-list kw-args)])
     (hash-set! params kw kw-arg))
-  (for ([(kw kw-arg) (in-hash params)]
-        #:unless (eq? kw '#:logic))
+  (for ([(kw kw-arg) (in-hash params)] #:unless (eq? kw '#:logic))
     (define-values (kw-str kw-arg-str) (z3:keyword-arg->_z3-param kw kw-arg))
     (z3:set-param-value! config kw-str kw-arg-str))
 
@@ -29,8 +28,8 @@
   (define sorts (make-hash))
   (define new-info (z3ctx ctx vals sorts (box #f)))
   (smt:with-context
-   new-info
-   (init-builtins))
+    new-info
+    (init-builtins))
   new-info)
 
 ; For a list of keyword arguments smt:new-context accepts, see

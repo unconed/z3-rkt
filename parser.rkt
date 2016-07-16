@@ -3,19 +3,18 @@
 (require (prefix-in z3: "z3-wrapper.rkt")
          "utils.rkt")
 (require racket/match
-         racket/contract/base)
+         racket/contract)
 
 (define (get-value id)
   (hash-ref (z3ctx-vals (current-context-info)) id))
-(define (set-value id v)
+(define (set-value! id v)
   (hash-set! (z3ctx-vals (current-context-info)) id v))
 
 ;; The current model for this context. This is a mutable box.
 (define (get-current-model)
-  (define model (unbox (z3ctx-current-model (current-context-info))))
-  (if (eq? model #f)
-      (raise (make-exn:fail "No model found"))
-      model))
+  (cond
+    [(unbox (z3ctx-current-model (current-context-info))) => values]
+    [else (error 'get-current-model "No model found")]))
 (define (set-current-model! new-model)
   (set-box! (z3ctx-current-model (current-context-info)) new-model))
 
@@ -30,27 +29,26 @@
 
 ;; Set the logic for this context. This can only be called once.
 (define (set-logic logic)
-  (let ([rv
-         (z3:set-logic (ctx) (symbol->string logic))])
-    (when (not rv) (handle-next-error))))
+  (unless (z3:set-logic (ctx) (symbol->string logic))
+    (handle-next-error)))
 
 ;; Declare a new sort. num-params is currently ignored.
 (define-syntax-rule (declare-sort sort num-params)
-  (set-value 'sort
-             (z3:mk-uninterpreted-sort (ctx) (make-symbol 'sort))))
+  (set-value! 'sort
+              (z3:mk-uninterpreted-sort (ctx) (make-symbol 'sort))))
 
 ;; sort-exprs are sort ids, (_ id parameter*), or (id sort-expr*).
 (define (sort-expr->_z3-sort expr)
   (match expr
     [(list '_ id params ...) (apply (get-sort id) params)]
     [(list id args ...)
-     (let ([sort (get-sort id)])
-       ;; The sort can either be a complex sort which needs to be
-       ;; instantiated, or a simple array sort.
-       (if (z3-complex-sort? sort)
-           (datatype-instance-z3-sort
-            (get-or-create-instance (get-sort id) (map sort-expr->_z3-sort args)))
-           (apply sort (map sort-expr->_z3-sort args))))]
+     (define sort (get-sort id))
+     ;; The sort can either be a complex sort which needs to be
+     ;; instantiated, or a simple array sort.
+     (if (z3-complex-sort? sort)
+         (datatype-instance-z3-sort
+          (get-or-create-instance (get-sort id) (map sort-expr->_z3-sort args)))
+         (apply sort (map sort-expr->_z3-sort args)))]
     [id (get-sort id)]))
 
 ;; Given an expr, convert it to a Z3 AST. This is a really simple recursive descent parser.
@@ -59,9 +57,10 @@
   (define ast
     (match expr
       ; Non-basic expressions
-      [(list '@app (and fn-name (? symbol?)) args ...)
+      [(list '@app (? symbol? fn-name) args ...)
        (apply (get-value fn-name) (ctx) (map expr->_z3-ast args))]
-      [(list '@app proc args ...) (apply proc (ctx) (map expr->_z3-ast args))]
+      [(list '@app proc args ...)
+       (apply proc (ctx) (map expr->_z3-ast args))]
       ; Numerals
       [(? exact-integer?) (z3:mk-numeral (ctx) (number->string expr) (get-sort 'Int))]
       [(? inexact-real?) (z3:mk-numeral (ctx) (number->string expr) (get-sort 'Real))]
@@ -82,15 +81,14 @@
 
 ;; Make an uninterpreted function given arg sorts and return sort.
 (define (make-uninterpreted name argsorts retsort)
-  (let ([args (map sort-expr->_z3-sort argsorts)]
-        [ret (sort-expr->_z3-sort retsort)])
-    (if (= 0 (length args))
-        (z3:mk-fresh-const (ctx) name ret)
-        (z3:mk-fresh-func-decl (ctx) name args ret))))
+  (define args (map sort-expr->_z3-sort argsorts))
+  (define ret (sort-expr->_z3-sort retsort))
+  (cond [(null? args) (z3:mk-fresh-const     (ctx) name      ret)]
+        [else         (z3:mk-fresh-func-decl (ctx) name args ret)]))
 
 ;; Declare a new function. argsort is a sort-expr.
-(define-syntax-rule (declare-fun fn args ...)
-  (define fn (make-uninterpreted (symbol->string 'fn) 'args ...)))
+(define-syntax-rule (declare-fun fn args ret)
+  (define fn (make-uninterpreted (symbol->string 'fn) 'args 'ret)))
 
 (define-syntax-rule (declare-const c T) (declare-fun c () T))
 
@@ -110,10 +108,10 @@
   (z3:mk-string-symbol (ctx) (symbol->string symbol-name)))
 
 ;; We only support plain symbol for now
-(define (constr->_z3-constructor expr)
+(define/contract (constr->_z3-constructor expr) (symbol? . -> . any)
   (z3:mk-constructor (ctx)
                      (make-symbol expr)
-                     (z3:mk-string-symbol (ctx) (string-append "is-" (symbol->string expr)))
+                     (z3:mk-string-symbol (ctx) (format "is-~a" expr))
                      '()))
 
 ;; Declare a complex datatype. Currently one scalar type is supported.
@@ -123,13 +121,12 @@
          [args (list `stx-args ...)]
          [constrs (map constr->_z3-constructor args)]
          [datatype (z3:mk-datatype (ctx) (make-symbol 'typename) constrs)])
-    (new-sort typename datatype)
-    (for-each
-     (lambda (constr-name constr)
-       (let-values ([(constr-fn tester-fn accessor-fns)
-                     (z3:query-constructor (ctx) constr 0)]) ; XXX handle > 0
-         (set-value constr-name (z3:mk-app (ctx) constr-fn))))
-     args constrs)))
+    (new-sort! typename datatype)
+    (for ([constr-name (in-list args   )]
+          [constr      (in-list constrs)])
+      ; XXX handle > 0
+      (define-values (constr-fn tester-fn accessor-fns) (z3:query-constructor (ctx) constr 0))
+      (set-value! constr-name (z3:mk-app (ctx) constr-fn)))))
 
 (define (assert expr)
   (z3:assert-cnstr (ctx) (expr->_z3-ast expr)))
@@ -139,14 +136,13 @@
   (set-current-model! model)
   rv)
 
-(define (get-model)
-  (get-current-model))
+(define get-model get-current-model)
 
 (define (eval-in-model model expr)
   (define-values (rv ast) (z3:eval (ctx) model (expr->_z3-ast expr)))
-  (if (eq? rv #f)
-      (raise (make-exn:fail "Evaluation failed"))
-      (_z3-ast->expr ast)))
+  (if rv
+      (_z3-ast->expr ast)
+      (error 'eval-in-model "Evaluation failed")))
 
 (define (smt:eval expr)
   (eval-in-model (get-current-model) expr))

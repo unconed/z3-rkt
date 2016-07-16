@@ -16,7 +16,7 @@
     ['windows "z3.dll"]
     ['macosx "libz3.dylib"]))
 
-(define libz3-without-suffix (path-replace-suffix libz3-path ""))
+(define libz3-without-suffix (path-replace-extension libz3-path ""))
 (define libz3 (ffi-lib libz3-without-suffix))
 
 (define-cpointer-type _z3-config)
@@ -65,40 +65,34 @@
 
 (define _z3-error-handler (_fun #:keep #t _int -> _void))
 
-;; XXX combine these two
-(define-syntax defz3
-  (syntax-rules (:)
-    [(_ name : type ...)
-     (begin
-       (define (name . args)
-         (apply (get-ffi-obj (regexp-replaces (format "Z3_~a" 'name) '((#rx"-" "_")
-                                                                       (#rx"!$" "")))
-                             libz3 (_fun type ...)) args))
-       (provide name))]))
+(define (name:racket->z3api name)
+  (regexp-replaces (format "Z3_~a" name) '((#rx"-" "_") (#rx"!$" ""))))
+
 (define-syntax defz3-wrapped
   (syntax-rules (:)
     [(_ name wrapper : type ...)
      (begin
        (define name
          (wrapper
-          (lambda args
-            (apply (get-ffi-obj (regexp-replaces (format "Z3_~a" 'name) '((#rx"-" "_")
-                                                                          (#rx"!$" "")))
-                                libz3 (_fun type ...)) args))))
+          (λ args
+            (apply (get-ffi-obj (name:racket->z3api 'name) libz3 (_fun type ...))
+                   args))))
        (provide name))]))
+(define-syntax defz3
+  (syntax-rules (:)
+    [(_ name : type ...) (defz3-wrapped name values : type ...)]))
 
 ;; Deallocators
-(defz3 del-config : _z3-config -> _void)
+(defz3 del-config  : _z3-config  -> _void)
 (defz3 del-context : _z3-context -> _void)
-(defz3 del-model : _z3-context _z3-model -> _void)
+(defz3 del-model   : _z3-context _z3-model -> _void)
 
 (defz3-wrapped mk-config (allocator del-config) : -> _z3-config)
 (defz3 set-param-value! : _z3-config _string _string -> _void)
 
 (define (keyword-arg->_z3-param kw kw-arg)
   (define kw-str (regexp-replaces (string-upcase (keyword->string kw))
-                                  '((#rx"-" "_")
-                                    (#rx"\\?$" ""))))
+                                  '((#rx"-" "_") (#rx"\\?$" ""))))
   (define kw-arg-str (match kw-arg
                        [#t "true"]
                        [#f "false"]
