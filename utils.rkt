@@ -1,6 +1,9 @@
 #lang racket/base
 
-(require (for-syntax racket/base))
+(require (for-syntax racket/base
+                     racket/syntax)
+         racket/contract
+         racket/match)
 
 (provide (struct-out z3ctx)
          current-context-info
@@ -8,7 +11,7 @@
          (struct-out datatype-instance)
          (struct-out z3-complex-sort)
          get-sort
-         new-sort
+         new-sort!
          get-or-create-instance
          builtin-vals-eval-at-init
          builtin-vals
@@ -22,18 +25,18 @@
 (struct z3ctx (context vals sorts current-model))
 
 ; This must be parameterized every time any syntax is used
-(define current-context-info (make-parameter #f))
+(define/contract current-context-info (parameter/c z3ctx?) (make-parameter #f))
 
 (define (ctx) (z3ctx-context (current-context-info)))
 
 ;; A symbol table for sorts
 (define (get-sort id)
   (hash-ref (z3ctx-sorts (current-context-info)) id))
-(define (new-sort id v)
+(define (new-sort! id v)
   (define sorts (z3ctx-sorts (current-context-info)))
-  (if (not (hash-ref sorts id #f))
-      (hash-set! sorts id v)
-      (raise (make-exn:fail "Defining a pre-existing sort!"))))
+  (cond [(hash-has-key? sorts id)
+         (error 'new-sort! "Defining a pre-existing sort!")]
+        [else (hash-set! sorts id v)]))
 
 ;; Indicates an instance of a datatype (e.g. (List Int) for List).
 (struct datatype-instance (z3-sort fns))
@@ -48,13 +51,8 @@
 ;; Given a base sort and parameter sorts, get or create a parameterized
 ;; datatype.
 (define (get-or-create-instance sort params)
-  (define instance-hash (z3-complex-sort-instance-hash sort))
-  (define ref (hash-ref instance-hash params #f))
-  (if ref
-      ref
-      (let ([new-instance ((z3-complex-sort-creator sort) (z3-complex-sort-base-sort sort) params)])
-        (hash-set! instance-hash params new-instance)
-        new-instance)))
+  (match-define (z3-complex-sort base creator cache) sort)
+  (hash-ref! cache params (λ () (creator base params))))
 
 ;; Curry a function application exactly n times.
 ;; (curryn 0 f a b) is the same as (f a b).
@@ -71,8 +69,7 @@
 (define builtin-sorts (make-hash))
 
 (define-for-syntax (add-smt-suffix stx)
-  (define suffixed-string (string-append (symbol->string (syntax->datum stx)) "/s"))
-  (datum->syntax stx (string->symbol suffixed-string)))
+  (format-id stx "~a/s" (syntax->datum stx)))
 
 (define-syntax (define-builtin-symbol stx)
   (syntax-case stx ()

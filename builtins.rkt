@@ -13,10 +13,10 @@
      (z3ctx-vals (current-context-info))
      (z3ctx-sorts (current-context-info))))
   (for ([(k fn) (in-hash builtin-sorts)])
-    (new-sort k (fn context)))
+    (new-sort! k (fn context)))
   ;; XXX This is a giant hack and needs to be generalized.
   (define int-list-instance (z3:mk-list-sort (ctx) (smt:internal:make-symbol 'IntList) (get-sort 'Int)))
-  (new-sort 'IntList (datatype-instance-z3-sort int-list-instance))
+  (new-sort! 'IntList (datatype-instance-z3-sort int-list-instance))
   (hash-set! vals int-list-key int-list-instance)
 
   (for ([(k fn) (in-hash builtin-vals-eval-at-init)])
