@@ -94,5 +94,16 @@
                                     (smt:internal:sort-expr->_z3-sort 'vartype))] ...)
     `(@app forall (,varname ...) ,expr)))
 (hash-set! builtin-vals 'forall (λ (ctx bound-consts expr) (z3:mk-forall-const ctx 0 bound-consts '() expr)))
+
+;; exists. PN: I have no clue. Just mimicking forall
+(define-syntax-rule (exists/s ((varname vartype) ...) expr)
+  (let ([varname (z3:mk-fresh-const (ctx)
+                                    (symbol->string 'varname)
+                                    (smt:internal:sort-expr->_z3-sort 'vartype))] ...)
+    `(@app exists (,varname ...) ,expr)))
+(hash-set! builtin-vals 'exists (λ (ctx bound-consts expr) (z3:mk-exists-const ctx 0 bound-consts '() expr)))
+
 (provide forall/s
-         (rename-out [forall/s ∀/s]))
+         (rename-out [forall/s ∀/s])
+         exists/s
+         (rename-out [exists/s ∃/s]))

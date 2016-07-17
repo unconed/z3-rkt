@@ -238,6 +238,16 @@
   (patterns : (_list i _z3-pattern))
   (body : _z3-ast)
   -> _z3-ast)
+(defz3 mk-exists-const :
+  (ctx weight bound-consts patterns body) ::
+  (ctx : _z3-context)
+  (weight : _uint)
+  (_uint = (length bound-consts))
+  (bound-consts : (_list i _z3-app))
+  (_uint = (length patterns))
+  (patterns : (_list i _z3-pattern))
+  (body : _z3-ast)
+  -> _z3-ast)
 
 ;; -> string functions
 (defz3 context-to-string : _z3-context -> _string)
