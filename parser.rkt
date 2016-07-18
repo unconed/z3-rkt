@@ -113,25 +113,19 @@
   (cond [(string? symbol-name) (z3:mk-string-symbol (ctx) symbol-name)]
         [else (make-symbol (format "~a" symbol-name))]))
 
-(define constr->_z3-constructor
-  (match-lambda
-    [(? symbol? k)
-     (z3:mk-constructor (ctx)
-                        (make-symbol k)
-                        (make-symbol (format "is-~a" k))
-                        '())]
-    #;[`(,k (,x ,T) ...)
-     (z3:mk-constructor (ctx)
-                        (make-symbol k)
-                        (make-symbol (format "is-~a" k))
-                        #|TODO??|# '())]))
+(define/contract (constr->_z3-constructor k)
+  (symbol? . -> . #|_z3-constructor|# any)
+  (z3:mk-constructor (ctx)
+                     (make-symbol k)
+                     (make-symbol (format "is-~a" k))
+                     '()))
 
 ;; Declare a complex datatype. Currently one scalar type is supported.
 ;; param-types is currently ignored
 (define-syntax (declare-datatypes stx)
   (syntax-parse stx
     ;; Scala case in original code
-    [(_ param-types ((stx-typename stx-args:id ...)))
+    [(_ param-types ((stx-typename:id stx-args:id ...)))
      #'(let* ([typename 'stx-typename]
               [args (list 'stx-args ...)]
               [constrs (map constr->_z3-constructor args)]

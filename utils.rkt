@@ -29,7 +29,8 @@
 (define-struct/contract z3ctx ([context cpointer?]
                                [vals  (hash/c symbol? todo/c)]
                                [sorts (hash/c symbol? todo/c)]
-                               [current-model (box/c (or/c #f todo/c))]))
+                               [current-model (box/c (or/c #f todo/c))])
+  #:transparent)
 
 ; This must be parameterized every time any syntax is used
 (define/contract current-context-info (parameter/c z3ctx?) (make-parameter #f))
@@ -49,7 +50,8 @@
 
 ;; Indicates an instance of a datatype (e.g. (List Int) for List).
 (define-struct/contract datatype-instance ([z3-sort todo/c]
-                                           [fns (hash/c todo/c todo/c)]))
+                                           [fns (hash/c todo/c todo/c)])
+  #:transparent)
 
 ;; A complex sort (e.g. List) has data about the base sort, a creator function
 ;; (which takes the base sort and a list of sort parameters to apply and produces
@@ -58,7 +60,8 @@
 ;; datatype-instance.
 (define-struct/contract z3-complex-sort ([base-sort todo/c]
                                          [creator (todo/c (listof todo/c) . -> . datatype-instance?)]
-                                         [instance-hash (hash/c (listof todo/c) datatype-instance?)]))
+                                         [instance-hash (hash/c (listof todo/c) datatype-instance?)])
+  #:transparent)
 
 ;; Given a base sort and parameter sorts, get or create a parameterized
 ;; datatype.

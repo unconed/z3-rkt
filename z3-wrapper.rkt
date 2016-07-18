@@ -29,9 +29,11 @@
 ;; - we hold a strong ref to the context so that it doesn't get GC'd
 ;; - we can attach pretty printers and other helpful utilities
 (define-struct/contract z3-boxed-pointer ([ctx todo/c]
-                                          [ptr cpointer?]))
+                                          [ptr cpointer?])
+  #:transparent)
 (struct z3-func-decl-pointer z3-boxed-pointer ()
-  #:property prop:procedure (λ (f . args) `(@app ,mk-app ,f ,@args)))
+  #:property prop:procedure (λ (f . args) `(@app ,mk-app ,f ,@args))
+  #:transparent)
 
 (define-simple-macro
   (define-z3-type _TYPE
@@ -201,13 +203,13 @@
 ;; Complex types
 (defz3 mk-constructor :
   (ctx name recognizer names-sorts-refs) ::
-  (ctx : _z3-context)
-  (name : _z3-symbol)
-  (recognizer : _z3-symbol)
-  (_uint = (length names-sorts-refs))
-  ((_list i _z3-symbol) = (map car names-sorts-refs))
-  ((_list i _z3-sort/null) = (map cadr names-sorts-refs))
-  ((_list i _uint) = (map caddr names-sorts-refs))
+  (ctx         : _z3-context)
+  (name        : _z3-symbol)
+  (recognizer  : _z3-symbol)
+  (num-fields  : _uint = (length names-sorts-refs))
+  (field-names : (_list i _z3-symbol) = (map car names-sorts-refs))
+  (sorts       : (_list i _z3-sort/null) = (map cadr names-sorts-refs))
+  (sort-refs   : (_list i _uint) = (map caddr names-sorts-refs))
   -> _z3-constructor)
 
 (defz3 query-constructor :
