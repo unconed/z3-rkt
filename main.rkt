@@ -24,8 +24,8 @@
   (define ctx (z3:mk-context config))
   (define logic (hash-ref params '#:logic #f))
   (when logic (z3:set-logic ctx logic))
-  (define vals (make-hash))
-  (define sorts (make-hash))
+  (define vals (make-hasheq))
+  (define sorts (make-hasheq))
   (define new-info (z3ctx ctx vals sorts (box #f)))
   (smt:with-context
     new-info

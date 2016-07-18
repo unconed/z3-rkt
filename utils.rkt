@@ -81,9 +81,9 @@
 
 ;; This is the prototype namespace for new contexts. It is added to by
 ;; define-builtin-symbol and define-builtin-proc below.
-(define/contract builtin-vals-eval-at-init (hash/c symbol? todo/c) (make-hash))
-(define/contract builtin-vals              (hash/c symbol? todo/c) (make-hash))
-(define/contract builtin-sorts             (hash/c symbol? todo/c) (make-hash))
+(define/contract builtin-vals-eval-at-init (hash/c symbol? todo/c) (make-hasheq))
+(define/contract builtin-vals              (hash/c symbol? todo/c) (make-hasheq))
+(define/contract builtin-sorts             (hash/c symbol? todo/c) (make-hasheq))
 
 (begin-for-syntax
   

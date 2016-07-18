@@ -134,12 +134,12 @@
   (head-decl : (_ptr o _z3-func-decl))
   (tail-decl : (_ptr o _z3-func-decl))
   -> (res : _z3-sort) ->
-  (datatype-instance res (hash 'nil nil-decl
-                               'is-nil is-nil-decl
-                               'cons cons-decl
-                               'is-cons is-cons-decl
-                               'head head-decl
-                               'tail tail-decl)))
+  (datatype-instance res (hasheq 'nil nil-decl
+                                 'is-nil is-nil-decl
+                                 'cons cons-decl
+                                 'is-cons is-cons-decl
+                                 'head head-decl
+                                 'tail tail-decl)))
 
 (defz3 mk-true : _z3-context -> _z3-ast)
 (defz3 mk-false : _z3-context -> _z3-ast)
