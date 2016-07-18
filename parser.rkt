@@ -96,17 +96,6 @@
 
 (define-syntax-rule (declare-const c T) (declare-fun c () T))
 
-(define-syntax-rule (make-fun args ...)
-  (make-uninterpreted "" 'args ...))
-
-(define-syntax-rule (make-fun/vector n args ...)
-  (for/vector ([i (in-range 0 n)])
-    (make-uninterpreted "" 'args ...)))
-
-(define-syntax-rule (make-fun/list n args ...)
-  (for/list ([i (in-range 0 n)])
-    (make-uninterpreted "" 'args ...)))
-
 ;; Helper function to make a symbol with the given name (Racket symbol)
 (define/contract (make-symbol symbol-name)
   ((or/c symbol? string?) . -> . #|cpointer/c _z3-symbol|# any)
@@ -125,17 +114,17 @@
 (define-syntax (declare-datatypes stx)
   (syntax-parse stx
     ;; Scala case in original code
-    [(_ param-types ((stx-typename:id stx-args:id ...)))
-     #'(let* ([typename 'stx-typename]
-              [args (list 'stx-args ...)]
-              [constrs (map constr->_z3-constructor args)]
-              [datatype (z3:mk-datatype (ctx) (make-symbol typename) constrs)])
-         (new-sort! typename datatype)
-         (for ([constr-name (in-list args   )]
-               [constr      (in-list constrs)])
+    [(_ (_ ...) ((id-T:id id-K:id ...)))
+     #'(let* ([T-name 'id-T]
+              [K-names '(id-K ...)]
+              [Ks (map constr->_z3-constructor K-names)]
+              [T (z3:mk-datatype (ctx) (make-symbol T-name) Ks)])
+         (new-sort! T-name T)
+         (for ([K-name (in-list K-names)]
+               [K      (in-list Ks     )])
            ;; TODO handle > 0
-           (define-values (constr-fn tester-fn accessor-fns) (z3:query-constructor (ctx) constr 0))
-           (set-value! constr-name (z3:mk-app (ctx) constr-fn))))]
+           (define-values (K-fn p-fn acc-fns) (z3:query-constructor (ctx) K 0))
+           (set-value! K-name (z3:mk-app (ctx) K-fn))))]
     ;; My attempt at ADT
     ))
 
@@ -169,9 +158,6 @@
    declare-sort
    declare-const
    declare-fun
-   make-fun
-   make-fun/vector
-   make-fun/list
    assert
    check-sat
    get-model))
