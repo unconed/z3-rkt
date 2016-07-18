@@ -15,6 +15,8 @@
          "utils.rkt"
          )
 
+(provide (struct-out z3-boxed-pointer))
+
 (define-runtime-path libz3-path
   (match (system-type 'os)
     ['unix "libz3.so"]
@@ -214,12 +216,12 @@
 
 (defz3 query-constructor :
   (ctx constructor num-fields) ::
-  (ctx : _z3-context)
-  (constructor : _z3-constructor)
-  (num-fields : _uint)
+  (ctx            : _z3-context)
+  (constructor    : _z3-constructor)
+  (num-fields     : _uint)
   (constructor-fn : (_ptr o _z3-func-decl))
-  (tester-fn : (_ptr o _z3-func-decl))
-  (accessor-fns : (_list o _z3-func-decl num-fields))
+  (tester-fn      : (_ptr o _z3-func-decl))
+  (accessor-fns   : (_list o _z3-func-decl num-fields))
   -> _void ->
   (values constructor-fn tester-fn accessor-fns))
 

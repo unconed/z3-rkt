@@ -1,9 +1,11 @@
 #lang racket/base
 
 (require (for-syntax racket/base
-                     syntax/parse)
+                     syntax/parse
+                     racket/contract)
          racket/match
          racket/contract
+         racket/syntax
          "utils.rkt"
          (prefix-in z3: "z3-wrapper.rkt")
          )
@@ -35,8 +37,8 @@
   (unless (z3:set-logic (ctx) (symbol->string logic))
     (handle-next-error)))
 
-;; Declare a new sort. num-params is currently ignored.
-(define-syntax-rule (declare-sort sort num-params)
+;; Declare a new sort.
+(define-syntax-rule (declare-sort sort)
   (set-value! 'sort (z3:mk-uninterpreted-sort (ctx) (make-symbol 'sort))))
 
 ;; sort-exprs are sort ids, (_ id parameter*), or (id sort-expr*).
@@ -51,7 +53,10 @@
          (datatype-instance-z3-sort
           (get-or-create-instance (get-sort id) (map sort-expr->_z3-sort args)))
          (apply sort (map sort-expr->_z3-sort args)))]
-    [id (get-sort id)]))
+    [id
+     (cond
+       [(get-sort id) => values]
+       [else (z3:z3-boxed-pointer (ctx) #f)])]))
 
 ;; Given an expr, convert it to a Z3 AST. This is a really simple recursive descent parser.
 (define (expr->_z3-ast expr)
@@ -114,11 +119,22 @@
         [else (make-symbol (format "~a" symbol-name))]))
 
 (define/contract (constr->_z3-constructor k)
-  (symbol? . -> . #|_z3-constructor|# any)
-  (z3:mk-constructor (ctx)
-                     (make-symbol k)
-                     (make-symbol (format "is-~a" k))
-                     '()))
+  ((or/c symbol? (cons/c symbol? (listof (list/c symbol? symbol?)))) 
+   . -> . #|_z3-constructor|# any)
+  (match k
+    [`(,k [,x ,t] ...)
+     (define names-sorts-refs
+       (for/list ([xᵢ (in-list x)] [tᵢ (in-list t)])
+         (define nameᵢ (make-symbol xᵢ))
+         (define sortᵢ (sort-expr->_z3-sort tᵢ))
+         (define refᵢ 0)
+         (list nameᵢ sortᵢ refᵢ)))
+     (z3:mk-constructor (ctx)
+                        (make-symbol k)
+                        (make-symbol (format "is-~a" k))
+                        names-sorts-refs)]
+    [_
+     (constr->_z3-constructor (list k))]))
 
 (begin-for-syntax
   (define-syntax-class fld
@@ -129,28 +145,38 @@
     #:description "datatype variant"
     (pattern name:id)
     (pattern (name:id field:fld ...))))
- 
 
 ;; Declare a complex datatype. Currently one scalar type is supported.
 ;; param-types is currently ignored
 (define-syntax (declare-datatypes stx)
   (syntax-parse stx
-    ;; Scalar case in original code
     [(_ () ((id-T:id id-K:id ...)))
-     #'(let* ([T-name 'id-T]
-              [K-names '(id-K ...)]
-              [Ks (map constr->_z3-constructor K-names)]
-              [T (z3:mk-datatype (ctx) (make-symbol T-name) Ks)])
-         (new-sort! T-name T)
-         (for ([K-name (in-list K-names)]
-               [K      (in-list Ks     )])
-           (define-values (K-fn p-fn acc-fns) (z3:query-constructor (ctx) K 0))
-           (set-value! K-name (z3:mk-app (ctx) K-fn))))]
+     #'(declare-datatypes () ((id-T (id-K) ...)))]
     ;; My attempt at ADT
-    ;; TODO: let this subsume above case
     ;; TODO: handle type parameters
     [(_ () ((id-T:id id-V:variant ...)))
-     (raise-syntax-error 'declare-datatypes "TODO: support general case")]))
+     #'(let ([T-name 'id-T]
+             [V-exprs '(id-V ...)]
+             [ctx (ctx)])
+         (define Ks (map constr->_z3-constructor V-exprs))
+         (define T (z3:mk-datatype ctx (make-symbol T-name) Ks))
+         (new-sort! T-name T)
+         (for ([V-expr (in-list V-exprs)]
+               [K      (in-list Ks     )])
+           (define-values (K-name x-names)
+             (match V-expr
+               [`(,K-name [,x-names ,_] (... ...))
+                (values K-name x-names)]
+               [(? symbol? K-name)
+                (values K-name '())]))
+           (define p-name (format-symbol "is-~a" K-name))
+           (define n (length x-names))
+           (define-values (K-fn p-fn acc-fns) (z3:query-constructor ctx K n))
+           (set-value! K-name K-fn)
+           (set-value! p-name p-fn)
+           (for ([x-name (in-list x-names)]
+                 [acc-fn (in-list acc-fns)])
+             (set-value! x-name acc-fn))))]))
 
 (define (assert expr)
   (z3:assert-cnstr (ctx) (expr->_z3-ast expr)))

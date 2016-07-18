@@ -39,8 +39,8 @@
 
 ;; A symbol table for sorts
 (define/contract (get-sort id)
-  (symbol? . -> . todo/c)
-  (hash-ref (z3ctx-sorts (current-context-info)) id))
+  (symbol? . -> . (or/c #f todo/c))
+  (hash-ref (z3ctx-sorts (current-context-info)) id #f))
 (define (new-sort! id v)
   (symbol? todo/c . -> . void?)
   (define sorts (z3ctx-sorts (current-context-info)))
