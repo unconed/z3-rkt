@@ -22,6 +22,7 @@
          curryn)
 
 (define todo/c any/c)
+(provide todo/c)
 
 ;; Z3 context info structure.
 (define-struct/contract z3ctx ([context todo/c]

@@ -1,14 +1,19 @@
 #lang racket/base
 
-(require ffi/unsafe
+(require (for-syntax racket/base
+                     racket/match
+                     syntax/parse)
+         ffi/unsafe
          ffi/unsafe/cvector
          ffi/vector
-         ffi/unsafe/alloc)
-(require racket/runtime-path
+         ffi/unsafe/alloc
+         racket/runtime-path
          racket/match
-         (for-syntax racket/match)
-         (for-syntax racket/base))
-(require "utils.rkt")
+         (rename-in racket/contract
+           [-> →])
+         syntax/parse/define
+         "utils.rkt"
+         )
 
 (define-runtime-path libz3-path
   (match (system-type 'os)
@@ -16,40 +21,74 @@
     ['windows "z3.dll"]
     ['macosx "libz3.dylib"]))
 
-(define libz3-without-suffix (path-replace-extension libz3-path ""))
-(define libz3 (ffi-lib libz3-without-suffix))
-
-(define-cpointer-type _z3-config)
-(define-cpointer-type _z3-context)
+(define libz3
+  (let ([libz3-without-suffix (path-replace-extension libz3-path "")])
+    (ffi-lib libz3-without-suffix)))
 
 ;; We wrap all our pointers up with a z3-boxed-pointer. This serves two purposes:
 ;; - we hold a strong ref to the context so that it doesn't get GC'd
 ;; - we can attach pretty printers and other helpful utilities
-(struct z3-boxed-pointer (ctx ptr))
-
-(define-syntax define-z3-type
-  (syntax-rules ()
-    [(_ _TYPE)
-     (define-z3-type _TYPE #f)]
-    [(_ _TYPE ptr-tag)
-     (define-z3-type _TYPE ptr-tag z3-boxed-pointer)]
-    [(_ _TYPE ptr-tag ptr-struct)
-     (define-cpointer-type _TYPE #f
-       z3-boxed-pointer-ptr
-       (λ (ptr)
-         (when ptr-tag (cpointer-push-tag! ptr ptr-tag))
-         (ptr-struct (ctx) ptr)))]))
-
+(define-struct/contract z3-boxed-pointer ([ctx todo/c]
+                                          [ptr cpointer?]))
 (struct z3-func-decl-pointer z3-boxed-pointer ()
   #:property prop:procedure (λ (f . args) `(@app ,mk-app ,f ,@args)))
 
-(define-z3-type _z3-symbol)
+(define-simple-macro
+  (define-z3-type _TYPE
+                  (~optional ptr-tag    #:defaults ([(ptr-tag    0) #'#f]))
+                  (~optional ptr-struct #:defaults ([(ptr-struct 0) #'z3-boxed-pointer])))
+  (define-cpointer-type _TYPE #f
+    z3-boxed-pointer-ptr
+    (λ (ptr)
+      (when ptr-tag
+        (cpointer-push-tag! ptr ptr-tag))
+      (ptr-struct (ctx) ptr))))
 
+(define-syntax defz3
+  (syntax-rules (:)
+    [(_ name : type ...)
+     (defz3 name #:wrapper values : type ...)]
+    [(_ name #:wrapper wrapper : type ...)
+     (begin
+       (define name
+         (let* ([c-name (regexp-replaces (format "Z3_~a" 'name) '((#rx"-" "_") (#rx"!$" "")))]
+                [ff (get-ffi-obj c-name libz3 (_fun type ...))])
+           (wrapper ff #;(λ args (apply ff args)))))
+       (provide name))]))
+
+(define/contract (keyword-arg->_z3-param kw kw-arg)
+  (keyword? any/c . → . (values string? string?))
+  (define kw-str (regexp-replaces (string-upcase (keyword->string kw))
+                                  '((#rx"-" "_") (#rx"\\?$" ""))))
+  (define kw-arg-str (match kw-arg
+                       [#t "true"]
+                       [#f "false"]
+                       [(? number?) (number->string kw-arg)]
+                       [_ kw-arg]))
+  (values kw-str kw-arg-str))
+(provide keyword-arg->_z3-param)
+
+;; Helper macro to define n-ary AST functions
+(define-syntax define-nary
+  (syntax-rules (: ->)
+    [(_ fn : argtype -> rettype)
+     (defz3 fn : (ctx . args) ::
+       (ctx : _z3-context)
+       (_uint = (length args))
+       (args : (_list i argtype)) -> rettype)]))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; Low-level API
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define-cpointer-type _z3-config)
+(define-cpointer-type _z3-context)
+(define-z3-type _z3-symbol)
 (define-z3-type _z3-ast)
 (define-z3-type _z3-sort z3-ast-tag)
 (define-z3-type _z3-app z3-ast-tag)
 (define-z3-type _z3-func-decl z3-ast-tag z3-func-decl-pointer)
-
 (define-z3-type _z3-constructor)
 (define-z3-type _z3-pattern)
 (define-z3-type _z3-model)
@@ -65,43 +104,15 @@
 
 (define _z3-error-handler (_fun #:keep #t _int -> _void))
 
-(define (name:racket->z3api name)
-  (regexp-replaces (format "Z3_~a" name) '((#rx"-" "_") (#rx"!$" ""))))
-
-(define-syntax defz3-wrapped
-  (syntax-rules (:)
-    [(_ name wrapper : type ...)
-     (begin
-       (define name
-         (wrapper
-          (λ args
-            (apply (get-ffi-obj (name:racket->z3api 'name) libz3 (_fun type ...))
-                   args))))
-       (provide name))]))
-(define-syntax defz3
-  (syntax-rules (:)
-    [(_ name : type ...) (defz3-wrapped name values : type ...)]))
-
 ;; Deallocators
 (defz3 del-config  : _z3-config  -> _void)
 (defz3 del-context : _z3-context -> _void)
 (defz3 del-model   : _z3-context _z3-model -> _void)
 
-(defz3-wrapped mk-config (allocator del-config) : -> _z3-config)
+(defz3 mk-config #:wrapper (allocator del-config) : -> _z3-config)
 (defz3 set-param-value! : _z3-config _string _string -> _void)
 
-(define (keyword-arg->_z3-param kw kw-arg)
-  (define kw-str (regexp-replaces (string-upcase (keyword->string kw))
-                                  '((#rx"-" "_") (#rx"\\?$" ""))))
-  (define kw-arg-str (match kw-arg
-                       [#t "true"]
-                       [#f "false"]
-                       [(? number?) (number->string kw-arg)]
-                       [_ kw-arg]))
-  (values kw-str kw-arg-str))
-(provide keyword-arg->_z3-param)
-                                                                         
-(defz3-wrapped mk-context (allocator del-context) : _z3-config -> _z3-context)
+(defz3 mk-context #:wrapper (allocator del-context) : _z3-config -> _z3-context)
 
 (defz3 set-logic : _z3-context _string -> _bool)
 
@@ -131,15 +142,6 @@
 (defz3 mk-true : _z3-context -> _z3-ast)
 (defz3 mk-false : _z3-context -> _z3-ast)
 (defz3 mk-eq : _z3-context _z3-ast _z3-ast -> _z3-ast)
-
-;; Helper macro to define n-ary AST functions
-(define-syntax define-nary
-  (syntax-rules (: ->)
-    [(_ fn : argtype -> rettype)
-     (defz3 fn : (ctx . args) ::
-       (ctx : _z3-context)
-       (_uint = (length args))
-       (args : (_list i argtype)) -> rettype)]))
 
 (define-nary mk-distinct : _z3-ast -> _z3-ast)
 
