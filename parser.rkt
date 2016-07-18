@@ -129,7 +129,7 @@
      #'(let* ([typename 'stx-typename]
               [args (list 'stx-args ...)]
               [constrs (map constr->_z3-constructor args)]
-              [datatype (z3:mk-datatype (ctx) (make-symbol 'typename) constrs)])
+              [datatype (z3:mk-datatype (ctx) (make-symbol typename) constrs)])
          (new-sort! typename datatype)
          (for ([constr-name (in-list args   )]
                [constr      (in-list constrs)])
