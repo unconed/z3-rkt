@@ -29,7 +29,7 @@
   (define new-info (z3ctx ctx vals sorts (box #f)))
   (smt:with-context
     new-info
-    (init-builtins))
+    (init-builtins!))
   new-info)
 
 ; For a list of keyword arguments smt:new-context accepts, see
