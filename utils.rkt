@@ -3,7 +3,8 @@
 (require (for-syntax racket/base
                      racket/syntax)
          racket/contract
-         racket/match)
+         racket/match
+         (except-in ffi/unsafe ->))
 
 (provide (struct-out z3ctx)
          current-context-info
@@ -25,15 +26,15 @@
 (provide todo/c)
 
 ;; Z3 context info structure.
-(define-struct/contract z3ctx ([context todo/c]
-                               [vals todo/c]
+(define-struct/contract z3ctx ([context cpointer?]
+                               [vals  (hash/c symbol? todo/c)]
                                [sorts (hash/c symbol? todo/c)]
-                               [current-model todo/c]))
+                               [current-model (box/c (or/c #f todo/c))]))
 
 ; This must be parameterized every time any syntax is used
 (define/contract current-context-info (parameter/c z3ctx?) (make-parameter #f))
 
-(define (ctx) (z3ctx-context (current-context-info)))
+(define/contract (ctx) (-> cpointer?) (z3ctx-context (current-context-info)))
 
 ;; A symbol table for sorts
 (define/contract (get-sort id)

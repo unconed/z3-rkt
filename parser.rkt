@@ -1,9 +1,12 @@
 #lang racket/base
 
-(require (prefix-in z3: "z3-wrapper.rkt")
-         "utils.rkt")
-(require racket/match
-         racket/contract)
+(require (for-syntax racket/base
+                     syntax/parse)
+         racket/match
+         racket/contract
+         "utils.rkt"
+         (prefix-in z3: "z3-wrapper.rkt")
+         )
 
 (define (get-value id)
   (hash-ref (z3ctx-vals (current-context-info)) id))
@@ -34,8 +37,7 @@
 
 ;; Declare a new sort. num-params is currently ignored.
 (define-syntax-rule (declare-sort sort num-params)
-  (set-value! 'sort
-              (z3:mk-uninterpreted-sort (ctx) (make-symbol 'sort))))
+  (set-value! 'sort (z3:mk-uninterpreted-sort (ctx) (make-symbol 'sort))))
 
 ;; sort-exprs are sort ids, (_ id parameter*), or (id sort-expr*).
 (define (sort-expr->_z3-sort expr)
@@ -54,23 +56,25 @@
 ;; Given an expr, convert it to a Z3 AST. This is a really simple recursive descent parser.
 (define (expr->_z3-ast expr)
   ;(displayln (format "IN: ~a" expr))
+  (define cur-ctx (ctx))
   (define ast
-    (match expr
-      ; Non-basic expressions
-      [(list '@app (? symbol? fn-name) args ...)
-       (apply (get-value fn-name) (ctx) (map expr->_z3-ast args))]
-      [(list '@app proc args ...)
-       (apply proc (ctx) (map expr->_z3-ast args))]
-      ; Numerals
-      [(? exact-integer?) (z3:mk-numeral (ctx) (number->string expr) (get-sort 'Int))]
-      [(? inexact-real?) (z3:mk-numeral (ctx) (number->string expr) (get-sort 'Real))]
-      ; Booleans
-      [#t (get-value 'true)]
-      [#f (get-value 'false)]
-      ; Symbols
-      [(? symbol?) (get-value expr)]
-      ; Anything else
-      [_ expr]))
+    (let go ([expr expr])
+      (match expr
+        ; Non-basic expressions
+        [(list '@app (? symbol? fn-name) args ...)
+         (apply (get-value fn-name) cur-ctx (map go args))]
+        [(list '@app proc args ...)
+         (apply proc cur-ctx (map go args))]
+        ; Numerals
+        [(? exact-integer?) (z3:mk-numeral cur-ctx (number->string expr) (get-sort 'Int))]
+        [(? inexact-real?) (z3:mk-numeral cur-ctx (number->string expr) (get-sort 'Real))]
+        ; Booleans
+        [#t (get-value 'true)]
+        [#f (get-value 'false)]
+        ; Symbols
+        [(? symbol?) (get-value expr)]
+        ; Anything else
+        [_ expr])))
   ;(displayln (format "Output: ~a ~a ~a" expr ast (z3:ast-to-string (ctx) ast)))
   ast)
 
@@ -104,29 +108,42 @@
     (make-uninterpreted "" 'args ...)))
 
 ;; Helper function to make a symbol with the given name (Racket symbol)
-(define (make-symbol symbol-name)
-  (z3:mk-string-symbol (ctx) (symbol->string symbol-name)))
+(define/contract (make-symbol symbol-name)
+  ((or/c symbol? string?) . -> . #|cpointer/c _z3-symbol|# any)
+  (cond [(string? symbol-name) (z3:mk-string-symbol (ctx) symbol-name)]
+        [else (make-symbol (format "~a" symbol-name))]))
 
-;; We only support plain symbol for now
-(define/contract (constr->_z3-constructor expr) (symbol? . -> . any)
-  (z3:mk-constructor (ctx)
-                     (make-symbol expr)
-                     (z3:mk-string-symbol (ctx) (format "is-~a" expr))
-                     '()))
+(define constr->_z3-constructor
+  (match-lambda
+    [(? symbol? k)
+     (z3:mk-constructor (ctx)
+                        (make-symbol k)
+                        (make-symbol (format "is-~a" k))
+                        '())]
+    #;[`(,k (,x ,T) ...)
+     (z3:mk-constructor (ctx)
+                        (make-symbol k)
+                        (make-symbol (format "is-~a" k))
+                        #|TODO??|# '())]))
 
 ;; Declare a complex datatype. Currently one scalar type is supported.
 ;; param-types is currently ignored
-(define-syntax-rule (declare-datatypes param-types ((stx-typename stx-args ...)))
-  (let* ([typename `stx-typename]
-         [args (list `stx-args ...)]
-         [constrs (map constr->_z3-constructor args)]
-         [datatype (z3:mk-datatype (ctx) (make-symbol 'typename) constrs)])
-    (new-sort! typename datatype)
-    (for ([constr-name (in-list args   )]
-          [constr      (in-list constrs)])
-      ; XXX handle > 0
-      (define-values (constr-fn tester-fn accessor-fns) (z3:query-constructor (ctx) constr 0))
-      (set-value! constr-name (z3:mk-app (ctx) constr-fn)))))
+(define-syntax (declare-datatypes stx)
+  (syntax-parse stx
+    ;; Scala case in original code
+    [(_ param-types ((stx-typename stx-args:id ...)))
+     #'(let* ([typename 'stx-typename]
+              [args (list 'stx-args ...)]
+              [constrs (map constr->_z3-constructor args)]
+              [datatype (z3:mk-datatype (ctx) (make-symbol 'typename) constrs)])
+         (new-sort! typename datatype)
+         (for ([constr-name (in-list args   )]
+               [constr      (in-list constrs)])
+           ;; TODO handle > 0
+           (define-values (constr-fn tester-fn accessor-fns) (z3:query-constructor (ctx) constr 0))
+           (set-value! constr-name (z3:mk-app (ctx) constr-fn))))]
+    ;; My attempt at ADT
+    ))
 
 (define (assert expr)
   (z3:assert-cnstr (ctx) (expr->_z3-ast expr)))
@@ -139,10 +156,9 @@
 (define get-model get-current-model)
 
 (define (eval-in-model model expr)
-  (define-values (rv ast) (z3:eval (ctx) model (expr->_z3-ast expr)))
-  (if rv
-      (_z3-ast->expr ast)
-      (error 'eval-in-model "Evaluation failed")))
+  (match/values (z3:eval (ctx) model (expr->_z3-ast expr))
+    [((? values) ast) (_z3-ast->expr ast)]
+    [(_          _  ) (error 'eval-in-model "Evaluation failed")]))
 
 (define (smt:eval expr)
   (eval-in-model (get-current-model) expr))
