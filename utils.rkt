@@ -21,8 +21,13 @@
          define-builtin-sort
          curryn)
 
+(define todo/c any/c)
+
 ;; Z3 context info structure.
-(struct z3ctx (context vals sorts current-model))
+(define-struct/contract z3ctx ([context todo/c]
+                               [vals todo/c]
+                               [sorts (hash/c symbol? todo/c)]
+                               [current-model todo/c]))
 
 ; This must be parameterized every time any syntax is used
 (define/contract current-context-info (parameter/c z3ctx?) (make-parameter #f))
@@ -30,27 +35,34 @@
 (define (ctx) (z3ctx-context (current-context-info)))
 
 ;; A symbol table for sorts
-(define (get-sort id)
+(define/contract (get-sort id)
+  (symbol? . -> . todo/c)
   (hash-ref (z3ctx-sorts (current-context-info)) id))
 (define (new-sort! id v)
+  (symbol? todo/c . -> . void?)
   (define sorts (z3ctx-sorts (current-context-info)))
   (cond [(hash-has-key? sorts id)
          (error 'new-sort! "Defining a pre-existing sort!")]
         [else (hash-set! sorts id v)]))
 
 ;; Indicates an instance of a datatype (e.g. (List Int) for List).
-(struct datatype-instance (z3-sort fns))
+(define-struct/contract datatype-instance ([z3-sort todo/c]
+                                           [fns (hash/c todo/c todo/c)]))
 
 ;; A complex sort (e.g. List) has data about the base sort, a creator function
 ;; (which takes the base sort and a list of sort parameters to apply and produces
 ;; an immutable datatype-instance. We also want to cache instances for specific sort
 ;; parameters (so (List Int) followed by (List Int) should return the same
 ;; datatype-instance.
-(struct z3-complex-sort (base-sort creator instance-hash))
+(define-struct/contract z3-complex-sort ([base-sort todo/c]
+                                         [creator (todo/c (listof todo/c) . -> . datatype-instance?)]
+                                         [instance-hash (hash/c (listof todo/c) datatype-instance?)]))
 
 ;; Given a base sort and parameter sorts, get or create a parameterized
 ;; datatype.
-(define (get-or-create-instance sort params)
+(define/contract (get-or-create-instance sort params)
+  (todo/c (listof todo/c) . -> . datatype-instance?)
+  
   (match-define (z3-complex-sort base creator cache) sort)
   (hash-ref! cache params (λ () (creator base params))))
 
@@ -64,12 +76,23 @@
 
 ;; This is the prototype namespace for new contexts. It is added to by
 ;; define-builtin-symbol and define-builtin-proc below.
-(define builtin-vals-eval-at-init (make-hash))
-(define builtin-vals (make-hash))
-(define builtin-sorts (make-hash))
+(define/contract builtin-vals-eval-at-init (hash/c symbol? todo/c) (make-hash))
+(define/contract builtin-vals              (hash/c symbol? todo/c) (make-hash))
+(define/contract builtin-sorts             (hash/c symbol? todo/c) (make-hash))
 
-(define-for-syntax (add-smt-suffix stx)
-  (format-id stx "~a/s" (syntax->datum stx)))
+(begin-for-syntax
+  
+  (define (add-smt-suffix stx)
+    (format-id stx "~a/s" (syntax->datum stx)))
+  
+  (define (with-syntax-define-proc name-stx fn-stx)
+    (with-syntax ([proc-stx (add-smt-suffix name-stx)]
+                  [name name-stx]
+                  [fn fn-stx])
+      #'(begin
+          (define (proc-stx . args) `(@app ,fn ,@args))
+          (hash-set! builtin-vals 'name fn)
+          (provide proc-stx)))))
 
 (define-syntax (define-builtin-symbol stx)
   (syntax-case stx ()
@@ -79,15 +102,6 @@
            (define proc-stx 'name)
            (hash-set! builtin-vals-eval-at-init 'name fn)
            (provide proc-stx)))]))
-
-(define-for-syntax (with-syntax-define-proc name-stx fn-stx)
-  (with-syntax ([proc-stx (add-smt-suffix name-stx)]
-                [name name-stx]
-                [fn fn-stx])
-    #'(begin
-        (define (proc-stx . args) `(@app ,fn ,@args))
-        (hash-set! builtin-vals 'name fn)
-        (provide proc-stx))))
 
 (define-syntax (define-builtin-proc stx)
   (syntax-case stx ()
