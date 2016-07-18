@@ -96,6 +96,17 @@
 
 (define-syntax-rule (declare-const c T) (declare-fun c () T))
 
+(define-syntax-rule (make-fun args ...)
+  (make-uninterpreted "" 'args ...))
+
+(define-syntax-rule (make-fun/vector n args ...)
+  (for/vector ([i (in-range 0 n)])
+    (make-uninterpreted "" 'args ...)))
+
+(define-syntax-rule (make-fun/list n args ...)
+  (for/list ([i (in-range 0 n)])
+    (make-uninterpreted "" 'args ...)))
+
 ;; Helper function to make a symbol with the given name (Racket symbol)
 (define/contract (make-symbol symbol-name)
   ((or/c symbol? string?) . -> . #|cpointer/c _z3-symbol|# any)
@@ -109,12 +120,23 @@
                      (make-symbol (format "is-~a" k))
                      '()))
 
+(begin-for-syntax
+  (define-syntax-class fld
+    #:description "field"
+    (pattern (name:id typ:id)))
+
+  (define-syntax-class variant
+    #:description "datatype variant"
+    (pattern name:id)
+    (pattern (name:id field:fld ...))))
+ 
+
 ;; Declare a complex datatype. Currently one scalar type is supported.
 ;; param-types is currently ignored
 (define-syntax (declare-datatypes stx)
   (syntax-parse stx
-    ;; Scala case in original code
-    [(_ (_ ...) ((id-T:id id-K:id ...)))
+    ;; Scalar case in original code
+    [(_ () ((id-T:id id-K:id ...)))
      #'(let* ([T-name 'id-T]
               [K-names '(id-K ...)]
               [Ks (map constr->_z3-constructor K-names)]
@@ -122,11 +144,13 @@
          (new-sort! T-name T)
          (for ([K-name (in-list K-names)]
                [K      (in-list Ks     )])
-           ;; TODO handle > 0
            (define-values (K-fn p-fn acc-fns) (z3:query-constructor (ctx) K 0))
            (set-value! K-name (z3:mk-app (ctx) K-fn))))]
     ;; My attempt at ADT
-    ))
+    ;; TODO: let this subsume above case
+    ;; TODO: handle type parameters
+    [(_ () ((id-T:id id-V:variant ...)))
+     (raise-syntax-error 'declare-datatypes "TODO: support general case")]))
 
 (define (assert expr)
   (z3:assert-cnstr (ctx) (expr->_z3-ast expr)))
@@ -158,6 +182,9 @@
    declare-sort
    declare-const
    declare-fun
+   make-fun
+   make-fun/vector
+   make-fun/list
    assert
    check-sat
    get-model))
