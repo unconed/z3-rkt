@@ -15,8 +15,6 @@
          "utils.rkt"
          )
 
-(provide (struct-out z3-boxed-pointer))
-
 (define-runtime-path libz3-path
   (match (system-type 'os)
     ['unix "libz3.so"]
@@ -96,6 +94,9 @@
 (define-z3-type _z3-constructor)
 (define-z3-type _z3-pattern)
 (define-z3-type _z3-model)
+
+(define (-z3-null) (z3-boxed-pointer (ctx) #f))
+(provide -z3-null)
 
 ;; Enumerations
 (define _z3-lbool (_enum '(false = -1 undef true) _int32))

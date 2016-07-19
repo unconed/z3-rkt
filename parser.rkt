@@ -1,8 +1,10 @@
 #lang racket/base
 
 (require (for-syntax racket/base
+                     racket/syntax
                      syntax/parse
-                     racket/contract)
+                     racket/contract
+                     racket/pretty)
          racket/match
          racket/contract
          racket/syntax
@@ -39,6 +41,7 @@
 
 ;; Declare a new sort.
 (define-syntax-rule (declare-sort sort)
+  ;; PN: should this be `new-sort!`?
   (set-value! 'sort (z3:mk-uninterpreted-sort (ctx) (make-symbol 'sort))))
 
 ;; sort-exprs are sort ids, (_ id parameter*), or (id sort-expr*).
@@ -56,7 +59,7 @@
     [id
      (cond
        [(get-sort id) => values]
-       [else (z3:z3-boxed-pointer (ctx) #f)])]))
+       [else (z3:-z3-null)])]))
 
 ;; Given an expr, convert it to a Z3 AST. This is a really simple recursive descent parser.
 (define (expr->_z3-ast expr)
@@ -118,23 +121,19 @@
   (cond [(string? symbol-name) (z3:mk-string-symbol (ctx) symbol-name)]
         [else (make-symbol (format "~a" symbol-name))]))
 
-(define/contract (constr->_z3-constructor k)
-  ((or/c symbol? (cons/c symbol? (listof (list/c symbol? symbol?)))) 
-   . -> . #|_z3-constructor|# any)
-  (match k
-    [`(,k [,x ,t] ...)
-     (define names-sorts-refs
-       (for/list ([xᵢ (in-list x)] [tᵢ (in-list t)])
-         (define nameᵢ (make-symbol xᵢ))
-         (define sortᵢ (sort-expr->_z3-sort tᵢ))
-         (define refᵢ 0)
-         (list nameᵢ sortᵢ refᵢ)))
-     (z3:mk-constructor (ctx)
-                        (make-symbol k)
-                        (make-symbol (format "is-~a" k))
-                        names-sorts-refs)]
-    [_
-     (constr->_z3-constructor (list k))]))
+(define/contract (constr->_z3-constructor k field-list)
+  (symbol? (listof (list/c symbol? symbol?)) . -> . #|_z3-constructor|# any)
+  (match-define `([,x ,t] ...) field-list)
+  (define names-sorts-refs
+    (for/list ([xᵢ (in-list x)] [tᵢ (in-list t)])
+      (define nameᵢ (make-symbol xᵢ))
+      (define sortᵢ (sort-expr->_z3-sort tᵢ))
+      (define refᵢ 0)
+      (list nameᵢ sortᵢ refᵢ)))
+  (z3:mk-constructor (ctx)
+                     (make-symbol k)
+                     (make-symbol (format "is-~a" k))
+                     names-sorts-refs))
 
 (begin-for-syntax
   (define-syntax-class fld
@@ -150,33 +149,66 @@
 ;; param-types is currently ignored
 (define-syntax (declare-datatypes stx)
   (syntax-parse stx
-    [(_ () ((id-T:id id-K:id ...)))
-     #'(declare-datatypes () ((id-T (id-K) ...)))]
     ;; My attempt at ADT
     ;; TODO: handle type parameters
-    [(_ () ((id-T:id id-V:variant ...)))
-     #'(let ([T-name 'id-T]
-             [V-exprs '(id-V ...)]
-             [ctx (ctx)])
-         (define Ks (map constr->_z3-constructor V-exprs))
-         (define T (z3:mk-datatype ctx (make-symbol T-name) Ks))
-         (new-sort! T-name T)
-         (for ([V-expr (in-list V-exprs)]
-               [K      (in-list Ks     )])
-           (define-values (K-name x-names)
-             (match V-expr
-               [`(,K-name [,x-names ,_] (... ...))
-                (values K-name x-names)]
-               [(? symbol? K-name)
-                (values K-name '())]))
-           (define p-name (format-symbol "is-~a" K-name))
-           (define n (length x-names))
-           (define-values (K-fn p-fn acc-fns) (z3:query-constructor ctx K n))
-           (set-value! K-name K-fn)
-           (set-value! p-name p-fn)
-           (for ([x-name (in-list x-names)]
-                 [acc-fn (in-list acc-fns)])
-             (set-value! x-name acc-fn))))]))
+    ;; TODO: should I use "/s" suffix to stay consistent with builtin ones?
+    ;;       If these are limited in (with-context ...), probably no need
+    [(_ () ((T:id vr:variant ...)))
+
+     (define/contract (parse-vr vr)
+       (syntax? . -> . (values identifier? identifier? (listof syntax?) identifier?))
+       (syntax-parse vr
+         [K:id (parse-vr #'(K))]
+         [(K:id [x:id t] ...)
+          (values (format-id #'K "con-~a" (syntax->datum #'K))
+                  #'K
+                  (syntax->list #'((x t) ...))
+                  (format-id #f "pre-~a" (syntax->datum #'K)))]))
+
+     (define-values (con-Ks Ks field-lists pre-Ks)
+       (for/lists (con-Ks Ks field-lists pre-Ks)
+                  ([vr (syntax->list #'(vr ...))])
+         (parse-vr vr)))
+     
+     (define gen
+       #`(begin
+           (define cur-ctx (ctx))
+           
+           ;; create constructors
+           #,@(for/list ([con-K      (in-list con-Ks)]
+                         [K          (in-list Ks)]
+                         [field-list (in-list field-lists)])
+                #`(define #,con-K (constr->_z3-constructor '#,K '#,field-list)))
+           
+           ;; define datatype
+           (define T (z3:mk-datatype cur-ctx (make-symbol 'T) (list #,@con-Ks)))
+           (new-sort! 'T T)
+
+           ;; define constructor/tester/accessors for each variant
+           #,@(for/list ([con-K      (in-list con-Ks)]
+                         [pre-K      (in-list pre-Ks)]
+                         [K          (in-list Ks)]
+                         [field-list (in-list field-lists)])
+                (define p (format-id K "is-~a" (syntax->datum K)))
+                (define accs
+                  (for/list ([field field-list])
+                    (syntax-parse field
+                      [(x:id t) #'x])))
+                (define n (length accs))
+                #`(begin
+                    (match-define-values (#,pre-K #,p (list #,@accs))
+                                         (z3:query-constructor cur-ctx #,con-K #,n))
+                    (define #,K
+                      #,(case n
+                          [(0)  #`(z3:mk-app cur-ctx #,pre-K)]
+                          [else pre-K]))
+                    (set-value! '#,K #,K)
+                    (set-value! '#,p #,p)
+                    #,@(for/list ([acc accs])
+                         #`(set-value! '#,acc #,acc))))))
+     ;(printf "declare-datatypes:~n")
+     ;(pretty-print (syntax->datum gen))
+     gen]))
 
 (define (assert expr)
   (z3:assert-cnstr (ctx) (expr->_z3-ast expr)))
