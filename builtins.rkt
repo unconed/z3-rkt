@@ -66,6 +66,7 @@
 (define-builtin-proc div z3:mk-div lassoc)
 (define-builtin-proc mod z3:mk-mod lassoc)
 (define-builtin-proc rem z3:mk-rem lassoc)
+(define-builtin-proc is-int z3:mk-is-int)
 ;; XXX Comparisons are chainable (i.e. (< a b c) == (and (< a b) (< b c)))
 (define-builtin-proc < z3:mk-lt)
 (define-builtin-proc <= z3:mk-le)
@@ -83,6 +84,7 @@
 ;; Built-in sorts
 (define-builtin-sort Bool z3:mk-bool-sort)
 (define-builtin-sort Int z3:mk-int-sort)
+(define-builtin-sort Real z3:mk-real-sort)
 (define-builtin-sort Array (curryn 2 z3:mk-array-sort))
 
 ;; forall. The syntax is (forall/s (list of bound variables) expression).

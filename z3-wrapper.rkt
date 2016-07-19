@@ -166,6 +166,7 @@
 (defz3 mk-div : _z3-context _z3-ast _z3-ast -> _z3-ast)
 (defz3 mk-mod : _z3-context _z3-ast _z3-ast -> _z3-ast)
 (defz3 mk-rem : _z3-context _z3-ast _z3-ast -> _z3-ast)
+(defz3 mk-is-int : _z3-context _z3-ast -> _z3-ast)
 
 ;; Comparisons
 (defz3 mk-lt : _z3-context _z3-ast _z3-ast -> _z3-ast)
