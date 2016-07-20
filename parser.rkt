@@ -8,26 +8,10 @@
          racket/match
          racket/contract
          racket/syntax
+         syntax/parse/define
          "utils.rkt"
          (prefix-in z3: "z3-wrapper.rkt")
          )
-
-(define (get-value id)
-  (hash-ref (z3ctx-vals (current-context-info)) id))
-(define (set-value! id v)
-  (hash-set! (z3ctx-vals (current-context-info)) id v))
-
-;; The current model for this context. This is a mutable box.
-(define (get-current-model)
-  (cond
-    [(unbox (z3ctx-current-model (current-context-info))) => values]
-    [else (error 'get-current-model "No model found")]))
-(define (set-current-model! new-model)
-  (set-box! (z3ctx-current-model (current-context-info)) new-model))
-
-(define-syntax-rule (with-context info body ...)
-  (parameterize ([current-context-info info])
-    body ...))
 
 ;; Handle the next error.
 (define (handle-next-error)
@@ -40,9 +24,9 @@
     (handle-next-error)))
 
 ;; Declare a new sort.
-(define-syntax-rule (declare-sort sort)
+(define-simple-macro (declare-sort T:id)
   ;; PN: should this be `new-sort!`?
-  (set-value! 'sort (z3:mk-uninterpreted-sort (ctx) (make-symbol 'sort))))
+  (set-value! 'T (z3:mk-uninterpreted-sort (ctx) (make-symbol 'T))))
 
 ;; sort-exprs are sort ids, (_ id parameter*), or (id sort-expr*).
 (define (sort-expr->_z3-sort expr)
@@ -54,7 +38,7 @@
      ;; instantiated, or a simple array sort.
      (if (z3-complex-sort? sort)
          (datatype-instance-z3-sort
-          (get-or-create-instance (get-sort id) (map sort-expr->_z3-sort args)))
+          (get-or-create-instance sort (map sort-expr->_z3-sort args)))
          (apply sort (map sort-expr->_z3-sort args)))]
     [id
      (cond
@@ -83,11 +67,12 @@
         [(? symbol?) (get-value expr)]
         ; Anything else
         [_ expr])))
-  ;(displayln (format "Output: ~a ~a ~a" expr ast (z3:ast-to-string (ctx) ast)))
+  ;(displayln (format "Output: ~a ~a ~a" expr ast (z3:ast-to-string cur-ctx ast)))
   ast)
 
 ;; Given a Z3 AST, convert it to an expression that can be parsed again into an AST,
 ;; assuming the same context. This is the inverse of expr->_z3-ast above.
+;; PN: How does this handle the `@app` thing?
 (define (_z3-ast->expr ast)
   (read (open-input-string (z3:ast-to-string (ctx) ast))))
 
@@ -98,11 +83,10 @@
   (cond [(null? args) (z3:mk-fresh-const     (ctx) name      ret)]
         [else         (z3:mk-fresh-func-decl (ctx) name args ret)]))
 
-;; Declare a new function. argsort is a sort-expr.
-(define-syntax-rule (declare-fun fn args ret)
-  (define fn (make-uninterpreted (symbol->string 'fn) 'args 'ret)))
-
-(define-syntax-rule (declare-const c T) (declare-fun c () T))
+;; Declare a new function. Each `D` is a sort-expr.
+(define-simple-macro (declare-fun f:id (D ...) R)
+  (define f (make-uninterpreted (symbol->string 'f) '(D ...) 'R)))
+(define-simple-macro (declare-const c:id T) (declare-fun c () T))
 
 (define-syntax-rule (make-fun args ...)
   (make-uninterpreted "" 'args ...))
@@ -116,10 +100,10 @@
     (make-uninterpreted "" 'args ...)))
 
 ;; Helper function to make a symbol with the given name (Racket symbol)
-(define/contract (make-symbol symbol-name)
-  ((or/c symbol? string?) . -> . #|cpointer/c _z3-symbol|# any)
-  (cond [(string? symbol-name) (z3:mk-string-symbol (ctx) symbol-name)]
-        [else (make-symbol (format "~a" symbol-name))]))
+(define/contract (make-symbol s)
+  ((or/c symbol? string?) . -> . #|_z3-symbol|# any)
+  (cond [(string? s) (z3:mk-string-symbol (ctx) s)]
+        [else        (make-symbol (format "~a" s))]))
 
 (define/contract (constr->_z3-constructor k field-list)
   (symbol? (listof (list/c symbol? symbol?)) . -> . #|_z3-constructor|# any)
@@ -145,28 +129,29 @@
     (pattern name:id)
     (pattern (name:id field:fld ...))))
 
-;; Declare a complex datatype. Currently one scalar type is supported.
-;; param-types is currently ignored
+;; Declare a complex datatype.
+;; TODO: handle type parameters
+;; TODO: handle mutually recursive types
+;; TODO: should I use "/s" suffix to stay consistent with builtin ones?
+;;       If these are limited in (with-context ...), probably no need
 (define-syntax (declare-datatypes stx)
   (syntax-parse stx
     ;; My attempt at ADT
-    ;; TODO: handle type parameters
-    ;; TODO: should I use "/s" suffix to stay consistent with builtin ones?
-    ;;       If these are limited in (with-context ...), probably no need
     [(_ () ((T:id vr:variant ...)))
-
      (define/contract (parse-vr vr)
-       (syntax? . -> . (values identifier? identifier? (listof syntax?) identifier?))
+       (syntax? . -> . (values identifier?      ; (internal) constructor
+                               identifier?      ; constructor
+                               (listof syntax?) ; accesstor × type …
+                               ))
        (syntax-parse vr
          [K:id (parse-vr #'(K))]
          [(K:id [x:id t] ...)
           (values (format-id #'K "con-~a" (syntax->datum #'K))
                   #'K
-                  (syntax->list #'((x t) ...))
-                  (format-id #f "pre-~a" (syntax->datum #'K)))]))
+                  (syntax->list #'((x t) ...)))]))
 
-     (define-values (con-Ks Ks field-lists pre-Ks)
-       (for/lists (con-Ks Ks field-lists pre-Ks)
+     (define-values (con-Ks Ks field-lists)
+       (for/lists (con-Ks Ks field-lists)
                   ([vr (syntax->list #'(vr ...))])
          (parse-vr vr)))
      
@@ -186,10 +171,10 @@
 
            ;; define constructor/tester/accessors for each variant
            #,@(for/list ([con-K      (in-list con-Ks)]
-                         [pre-K      (in-list pre-Ks)]
                          [K          (in-list Ks)]
                          [field-list (in-list field-lists)])
-                (define p (format-id K "is-~a" (syntax->datum K)))
+                (define p     (format-id K "is-~a"  (syntax->datum K)))
+                (define pre-K (format-id K "pre-~a" (syntax->datum K)))
                 (define accs
                   (for/list ([field field-list])
                     (syntax-parse field
@@ -206,8 +191,8 @@
                     (set-value! '#,p #,p)
                     #,@(for/list ([acc accs])
                          #`(set-value! '#,acc #,acc))))))
-     ;(printf "declare-datatypes:~n")
-     ;(pretty-print (syntax->datum gen))
+     (printf "declare-datatypes:~n")
+     (pretty-print (syntax->datum gen))
      gen]))
 
 (define (assert expr)
@@ -218,8 +203,6 @@
   (set-current-model! model)
   rv)
 
-(define get-model get-current-model)
-
 (define (eval-in-model model expr)
   (match/values (z3:eval (ctx) model (expr->_z3-ast expr))
     [((? values) ast) (_z3-ast->expr ast)]
@@ -227,6 +210,10 @@
 
 (define (smt:eval expr)
   (eval-in-model (get-current-model) expr))
+
+(define-syntax-rule (with-context info body ...)
+  (parameterize ([current-context-info info])
+    body ...))
 
 ;; XXX need to implement a function to get all models. To do that we need
 ;; push, pop, and a way to navigate a model.
@@ -245,7 +232,7 @@
    make-fun/list
    assert
    check-sat
-   get-model))
+   (rename-out [get-current-model get-model])))
  smt:eval
  (prefix-out smt: (contract-out
                    [set-logic (-> symbol? any)]))

@@ -28,7 +28,7 @@
 ;; We wrap all our pointers up with a z3-boxed-pointer. This serves two purposes:
 ;; - we hold a strong ref to the context so that it doesn't get GC'd
 ;; - we can attach pretty printers and other helpful utilities
-(define-struct/contract z3-boxed-pointer ([ctx todo/c]
+(define-struct/contract z3-boxed-pointer ([ctx cpointer? #|_z3-context|#]
                                           [ptr cpointer?])
   #:transparent)
 (struct z3-func-decl-pointer z3-boxed-pointer ()
@@ -48,20 +48,19 @@
 
 (define-syntax defz3
   (syntax-rules (:)
-    [(_ name : type ...)
-     (defz3 name #:wrapper values : type ...)]
-    [(_ name #:wrapper wrapper : type ...)
+    [(_ x : t ...)
+     (defz3 x #:wrapper values : t ...)]
+    [(_ x #:wrapper w : t ...)
      (begin
-       (define name
-         (let* ([c-name (regexp-replaces (format "Z3_~a" 'name) '((#rx"-" "_") (#rx"!$" "")))]
-                [ff (get-ffi-obj c-name libz3 (_fun type ...))])
-           (wrapper ff #;(λ args (apply ff args)))))
-       (provide name))]))
+       (define x
+         (let* ([c-name (regexp-replaces (format "Z3_~a" 'x) '((#rx"-" "_") (#rx"!$" "")))]
+                [func (get-ffi-obj c-name libz3 (_fun t ...))])
+           (w func)))
+       (provide x))]))
 
 (define/contract (keyword-arg->_z3-param kw kw-arg)
   (keyword? any/c . → . (values string? string?))
-  (define kw-str (regexp-replaces (string-upcase (keyword->string kw))
-                                  '((#rx"-" "_") (#rx"\\?$" ""))))
+  (define kw-str (regexp-replaces (keyword->string kw) '((#rx"-" "_") (#rx"\\?$" ""))))
   (define kw-arg-str (match kw-arg
                        [#t "true"]
                        [#f "false"]
@@ -178,8 +177,7 @@
 (defz3 mk-numeral : _z3-context _string _z3-sort -> _z3-ast)
 
 ;; Uninterpreted constants, functions and applications
-(defz3 mk-fresh-func-decl :
-  (ctx prefix domain range) ::
+(defz3 mk-fresh-func-decl : (ctx prefix domain range) ::
   (ctx : _z3-context)
   (prefix : _string)
   (_uint = (length domain))
@@ -193,12 +191,7 @@
   (_uint = (length args))
   (args : (_list i _z3-ast)) -> _z3-ast)
 
-(defz3 mk-fresh-const :
-  (ctx prefix sort) ::
-  (ctx : _z3-context)
-  (prefix : _string)
-  (sort : _z3-sort)
-  -> _z3-app)
+(defz3 mk-fresh-const : _z3-context _string _z3-sort -> _z3-app)
 
 ;; Array operations
 (defz3 mk-select : _z3-context _z3-ast _z3-ast -> _z3-ast)

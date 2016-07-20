@@ -1,10 +1,13 @@
 #lang racket/base
 
 (require (for-syntax racket/base
-                     racket/syntax)
+                     racket/syntax
+                     racket/contract
+                     syntax/parse)
          racket/contract
          racket/match
-         (except-in ffi/unsafe ->))
+         syntax/parse/define
+         (only-in ffi/unsafe cpointer?))
 
 (provide (struct-out z3ctx)
          current-context-info
@@ -13,6 +16,10 @@
          (struct-out z3-complex-sort)
          get-sort
          new-sort!
+         get-value
+         set-value!
+         get-current-model
+         set-current-model!
          get-or-create-instance
          builtin-vals-eval-at-init
          builtin-vals
@@ -45,8 +52,21 @@
   (symbol? todo/c . -> . void?)
   (define sorts (z3ctx-sorts (current-context-info)))
   (cond [(hash-has-key? sorts id)
-         (error 'new-sort! "Defining a pre-existing sort!")]
+         (error 'new-sort! "Defining a pre-existing sort: ~a" id)]
         [else (hash-set! sorts id v)]))
+
+(define (get-value id)
+  (hash-ref (z3ctx-vals (current-context-info)) id))
+(define (set-value! id v)
+  (hash-set! (z3ctx-vals (current-context-info)) id v))
+
+;; The current model for this context. This is a mutable box.
+(define (get-current-model)
+  (cond
+    [(unbox (z3ctx-current-model (current-context-info))) => values]
+    [else (error 'get-current-model "No model found")]))
+(define (set-current-model! new-model)
+  (set-box! (z3ctx-current-model (current-context-info)) new-model))
 
 ;; Indicates an instance of a datatype (e.g. (List Int) for List).
 (define-struct/contract datatype-instance ([z3-sort todo/c]
@@ -87,34 +107,36 @@
 
 (begin-for-syntax
   
-  (define (add-smt-suffix stx)
-    (format-id stx "~a/s" (syntax->datum stx)))
+  (define/contract (add-smt-suffix id)
+    (identifier? . -> . identifier?)
+    (format-id id "~a/s" (syntax->datum id)))
   
-  (define (with-syntax-define-proc name-stx fn-stx)
-    (with-syntax ([proc-stx (add-smt-suffix name-stx)]
-                  [name name-stx]
-                  [fn fn-stx])
-      #'(begin
-          (define (proc-stx . args) `(@app ,fn ,@args))
-          (hash-set! builtin-vals 'name fn)
-          (provide proc-stx)))))
+  (define/contract (with-syntax-define-proc f v)
+    (identifier? syntax? . -> . syntax?)
+    (with-syntax ([f/s (add-smt-suffix f)])
+      #`(begin
+          ; PN: strange, here it's `v` instead of `(quote f)`
+          (define (f/s . args) `(@app ,#,v ,@args))
+          (hash-set! builtin-vals '#,f #,v)
+          (provide f/s)))))
 
 (define-syntax (define-builtin-symbol stx)
-  (syntax-case stx ()
-    [(_ name fn)
-     (with-syntax ([proc-stx (add-smt-suffix #'name)])
+  (syntax-parse stx
+    [(_ c:id v)
+     (with-syntax ([c/s (add-smt-suffix #'c)])
        #'(begin
-           (define proc-stx 'name)
-           (hash-set! builtin-vals-eval-at-init 'name fn)
-           (provide proc-stx)))]))
+           (define c/s 'c) ; PN: why not assign `v` to it?
+           (hash-set! builtin-vals-eval-at-init 'c v)
+           (provide c/s)))]))
 
 (define-syntax (define-builtin-proc stx)
-  (syntax-case stx ()
-    [(_ name fn)
-     (with-syntax-define-proc #'name #'fn)]
-    [(_ name fn wrap)
-     (with-syntax-define-proc #'name
-                              #'(λ (context . args) (apply (wrap (curryn 1 fn context)) args)))]))
+  (syntax-parse stx
+    [(_ f:id v)
+     (with-syntax-define-proc #'f #'v)]
+    [(_ f:id v wrap)
+     (with-syntax-define-proc
+       #'f
+       #'(λ (ctx . args) (apply (wrap (curryn 1 v ctx)) args)))]))
 
-(define-syntax-rule (define-builtin-sort name fn)
-  (hash-set! builtin-sorts 'name fn))
+(define-simple-macro (define-builtin-sort x:id v)
+  (hash-set! builtin-sorts 'x v))
