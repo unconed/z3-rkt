@@ -2,6 +2,7 @@
 
 (require racket/list
          racket/match
+         syntax/parse/define
          "utils.rkt"
          "parser.rkt"
          (prefix-in z3: "z3-wrapper.rkt"))
@@ -87,21 +88,17 @@
 (define-builtin-sort Real z3:mk-real-sort)
 (define-builtin-sort Array (curryn 2 z3:mk-array-sort))
 
-;; forall. The syntax is (forall/s (list of bound variables) expression).
-(define-syntax-rule (forall/s ((varname vartype) ...) expr)
-  (let ([varname (z3:mk-fresh-const (ctx)
-                                    (symbol->string 'varname)
-                                    (smt:internal:sort-expr->_z3-sort 'vartype))] ...)
-    `(@app forall (,varname ...) ,expr)))
-(hash-set! builtin-vals 'forall (λ (ctx bound-consts expr) (z3:mk-forall-const ctx 0 bound-consts '() expr)))
+(define-simple-macro (quant/s q:id ([x:id t] ...) e)
+  (let ([x (z3:mk-fresh-const (ctx)
+                              (symbol->string 'x)
+                              (smt:internal:sort-expr->_z3-sort 't))] ...)
+    `(@app q (,x ...) ,e)))
 
-;; exists. PN: I have no clue. Just mimicking `forall`
-(define-syntax-rule (exists/s ((varname vartype) ...) expr)
-  (let ([varname (z3:mk-fresh-const (ctx)
-                                    (symbol->string 'varname)
-                                    (smt:internal:sort-expr->_z3-sort 'vartype))] ...)
-    `(@app exists (,varname ...) ,expr)))
-(hash-set! builtin-vals 'exists (λ (ctx bound-consts expr) (z3:mk-exists-const ctx 0 bound-consts '() expr)))
+;; forall. The syntax is (forall/s (list of bound variables) expression).
+(define-simple-macro (forall/s ([x:id t] ...) e) (quant/s forall ([x t] ...) e))
+(define-simple-macro (exists/s ([x:id t] ...) e) (quant/s exists ([x t] ...) e))
+(hash-set! builtin-vals 'forall (λ (ctx xs e) (z3:mk-forall-const ctx 0 xs '() e)))
+(hash-set! builtin-vals 'exists (λ (ctx xs e) (z3:mk-exists-const ctx 0 xs '() e)))
 
 (provide forall/s
          (rename-out [forall/s ∀/s])
