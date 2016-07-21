@@ -2,6 +2,7 @@
 
 (require (for-syntax racket/base
                      racket/match
+                     racket/syntax
                      syntax/parse)
          ffi/unsafe
          ffi/unsafe/cvector
@@ -35,16 +36,29 @@
   #:property prop:procedure (λ (f . args) `(@app ,mk-app ,f ,@args))
   #:transparent)
 
-(define-simple-macro
-  (define-z3-type _TYPE
-                  (~optional ptr-tag    #:defaults ([(ptr-tag    0) #'#f]))
-                  (~optional ptr-struct #:defaults ([(ptr-struct 0) #'z3-boxed-pointer])))
-  (define-cpointer-type _TYPE #f
-    z3-boxed-pointer-ptr
-    (λ (ptr)
-      (when ptr-tag
-        (cpointer-push-tag! ptr ptr-tag))
-      (ptr-struct (ctx) ptr))))
+(define (z3-boxed-pointer/c p?)
+  (match-lambda
+    [(z3-boxed-pointer _ x) (p? x)]
+    [_ #f]))
+
+(define-syntax (define-z3-type stx)
+  (syntax-parse stx
+    [(_ _t:id
+        (~optional ptr-tag    #:defaults ([(ptr-tag    0) #'#f]))
+        (~optional ptr-struct #:defaults ([(ptr-struct 0) #'z3-boxed-pointer])))
+     (with-syntax ([t?
+                    (let* ([s (symbol->string (syntax->datum #'_t))]
+                           [t (substring s 1 (string-length s))])
+                      (format-id #'_t "~a?" t))])
+       #'(begin
+           (define-cpointer-type _t #f
+             z3-boxed-pointer-ptr
+             (λ (ptr)
+               (when ptr-tag
+                 (cpointer-push-tag! ptr ptr-tag))
+               (ptr-struct (ctx) ptr)))
+           (define p? (z3-boxed-pointer/c t?))
+           (provide (rename-out [p? t?]))))]))
 
 (define-syntax defz3
   (syntax-rules (:)
@@ -83,8 +97,8 @@
 ;;;;; Low-level API
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-cpointer-type _z3-config)
-(define-cpointer-type _z3-context)
+(define-cpointer-type _z3-config)  (provide z3-config?)
+(define-cpointer-type _z3-context) (provide z3-context?)
 (define-z3-type _z3-symbol)
 (define-z3-type _z3-ast)
 (define-z3-type _z3-sort z3-ast-tag)
@@ -95,7 +109,8 @@
 (define-z3-type _z3-model)
 
 (define (-z3-null) (z3-boxed-pointer (ctx) #f))
-(provide -z3-null)
+(define z3-null? (z3-boxed-pointer/c not))
+(provide -z3-null z3-null?)
 
 ;; Enumerations
 (define _z3-lbool (_enum '(false = -1 undef true) _int32))

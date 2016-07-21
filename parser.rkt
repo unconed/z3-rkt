@@ -41,9 +41,8 @@
           (get-or-create-instance sort (map sort-expr->_z3-sort args)))
          (apply sort (map sort-expr->_z3-sort args)))]
     [id
-     (cond
-       [(get-sort id) => values]
-       [else (z3:-z3-null)])]))
+     (cond [(get-sort id) => values]
+           [else (z3:-z3-null)])]))
 
 ;; Given an expr, convert it to a Z3 AST. This is a really simple recursive descent parser.
 (define (expr->_z3-ast expr)
@@ -101,12 +100,12 @@
 
 ;; Helper function to make a symbol with the given name (Racket symbol)
 (define/contract (make-symbol s)
-  ((or/c symbol? string?) . -> . #|_z3-symbol|# any)
+  ((or/c symbol? string?) . -> . z3:z3-symbol?)
   (cond [(string? s) (z3:mk-string-symbol (ctx) s)]
         [else        (make-symbol (format "~a" s))]))
 
 (define/contract (constr->_z3-constructor k field-list)
-  (symbol? (listof (list/c symbol? symbol?)) . -> . #|_z3-constructor|# any)
+  (symbol? (listof (list/c symbol? symbol?)) . -> . z3:z3-constructor?)
   (match-define `([,x ,t] ...) field-list)
   (define names-sorts-refs
     (for/list ([xᵢ (in-list x)] [tᵢ (in-list t)])
