@@ -1,11 +1,72 @@
 #lang racket/base
 
-(require racket/list
+(require (for-syntax racket/base
+                     racket/syntax
+                     syntax/parse
+                     racket/contract)
+         racket/list
          racket/match
+         racket/contract
          syntax/parse/define
          "utils.rkt"
          "parser.rkt"
          (prefix-in z3: "z3-wrapper.rkt"))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; Utils (from old `utils.rkt`)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; This is the prototype namespace for new contexts. It is added to by
+;; define-builtin-symbol and define-builtin-proc below.
+(define/contract builtin-vals-eval-at-init (hash/c symbol? todo/c) (make-hasheq))
+(define/contract builtin-sorts             (hash/c symbol? todo/c) (make-hasheq))
+
+(begin-for-syntax
+  
+  (define/contract (add-smt-suffix id)
+    (identifier? . -> . identifier?)
+    (format-id id "~a/s" (syntax->datum id)))
+  
+  (define/contract (with-syntax-define-proc f v)
+    (identifier? syntax? . -> . syntax?)
+    (with-syntax ([f/s (add-smt-suffix f)])
+      #`(begin
+          (define (f/s . args) (apply #,v (ctx) (map z3:expr->_z3-ast args)))
+          (provide f/s)))))
+
+(define-syntax (define-builtin-symbol stx)
+  (syntax-parse stx
+    [(_ c:id v)
+     (with-syntax ([c/s (add-smt-suffix #'c)])
+       #'(begin
+           (define c/s 'c) ; PN: why not assign `v` to it? There's always `ctx` that needs passing in
+           (hash-set! builtin-vals-eval-at-init 'c v)
+           (provide c/s)))]))
+
+(define-syntax (define-builtin-proc stx)
+  (syntax-parse stx
+    [(_ f:id v)
+     (with-syntax-define-proc #'f #'v)]
+    [(_ f:id v wrap)
+     (with-syntax-define-proc
+       #'f
+       #'(λ (ctx . args) (apply (wrap (curryn 1 v ctx)) args)))]))
+
+(define-simple-macro (define-builtin-sort x:id v)
+  (hash-set! builtin-sorts 'x v))
+
+;; Curry a function application exactly n times.
+;; (curryn 0 f a b) is the same as (f a b).
+;; ((curryn 1 f a b) c d) is the same as (f a b c d) and so on.
+(define (curryn n fn . args)
+  (if (zero? n)
+      (apply fn args)
+      (λ more-args (apply curryn (sub1 n) fn (append args more-args)))))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; from old `builtins.rkt`
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; Initialize builtins. (The current context is assumed to be a parameter.)
 (define (init-builtins!)
@@ -18,9 +79,7 @@
   (hash-set! vals int-list-key int-list-instance)
 
   (for ([(k fn) (in-hash builtin-vals-eval-at-init)])
-    (hash-set! vals k (fn ctx)))
-  (for ([(k v) (in-hash builtin-vals)])
-    (hash-set! vals k v)))
+    (hash-set! vals k (fn ctx))))
 (provide init-builtins!)
 
 (define int-list-key (gensym))
@@ -38,12 +97,11 @@
   (match-define-values (args* (list argn)) (split-at-right args 1))
   (foldr fn argn args*))
 
-(define ((flip f) x y) (f y x))
-
 ;; Wraps a binary function so that arguments are processed
 ;; in a left-associative manner. Note that foldl calls functions
 ;; in their reverse order, so we flip the arguments to fix that.
 (define ((lassoc fn) fst . rst)
+  (define ((flip f) x y) (f y x))
   (foldl (flip fn) fst rst))
 
 ;; Builtin symbols
@@ -88,17 +146,18 @@
 (define-builtin-sort Real z3:mk-real-sort)
 (define-builtin-sort Array (curryn 2 z3:mk-array-sort))
 
-(define-simple-macro (quant/s q:id ([x:id t] ...) e)
-  (let ([x (z3:mk-fresh-const (ctx)
-                              (symbol->string 'x)
-                              (smt:internal:sort-expr->_z3-sort 't))] ...)
-    `(@app q (,x ...) ,e)))
-
-;; forall. The syntax is (forall/s (list of bound variables) expression).
-(define-simple-macro (forall/s ([x:id t] ...) e) (quant/s forall ([x t] ...) e))
-(define-simple-macro (exists/s ([x:id t] ...) e) (quant/s exists ([x t] ...) e))
-(hash-set! builtin-vals 'forall (λ (ctx xs e) (z3:mk-forall-const ctx 0 xs '() e)))
-(hash-set! builtin-vals 'exists (λ (ctx xs e) (z3:mk-exists-const ctx 0 xs '() e)))
+(define-simple-macro (forall/s ([x:id t] ...) e)
+  (let ([cur-ctx (ctx)])
+    (let ([x (z3:mk-fresh-const cur-ctx
+                                (symbol->string 'x)
+                                (smt:internal:sort-expr->_z3-sort 't))] ...)
+      (z3:mk-forall-const cur-ctx 0 (list x ...) '() (z3:expr->_z3-ast e)))))
+(define-simple-macro (exists/s ([x:id t] ...) e)
+  (let ([cur-ctx (ctx)])
+    (let ([x (z3:mk-fresh-const cur-ctx
+                                (symbol->string 'x)
+                                (smt:internal:sort-expr->_z3-sort 't))] ...)
+      (z3:mk-exists-const cur-ctx 0 (list x ...) '() (z3:expr->_z3-ast e)))))
 
 (provide forall/s
          (rename-out [forall/s ∀/s])

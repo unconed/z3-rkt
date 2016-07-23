@@ -33,7 +33,7 @@
                                           [ptr cpointer?])
   #:transparent)
 (struct z3-func-decl-pointer z3-boxed-pointer ()
-  #:property prop:procedure (λ (f . args) `(@app ,mk-app ,f ,@args))
+  #:property prop:procedure (λ (f . args) (apply mk-app (ctx) f (map expr->_z3-ast args)))
   #:transparent)
 
 (define (z3-boxed-pointer/c p?)
@@ -91,6 +91,27 @@
        (ctx : _z3-context)
        (_uint = (length args))
        (args : (_list i argtype)) -> rettype)]))
+
+;; Given an expr, convert it to a Z3 AST. This is a really simple recursive descent parser.
+(define (expr->_z3-ast e)
+  ;(displayln (format "IN: ~a" e))
+  (define cur-ctx (ctx))
+  (define ast
+    (let go ([e e])
+      (match e
+        ; Numerals
+        [(? exact-integer? n) (mk-numeral cur-ctx (number->string n) (get-sort 'Int))]
+        [(?  inexact-real? r) (mk-numeral cur-ctx (number->string r) (get-sort 'Real))]
+        ; Booleans
+        [#t (get-value 'true)]
+        [#f (get-value 'false)]
+        ; Symbols
+        [(? symbol? s) (get-value s)]
+        ; Anything else
+        [_ e])))
+  ;(displayln (format "Output: ~a ~a ~a" expr ast (z3:ast-to-string cur-ctx ast)))
+  ast)
+(provide expr->_z3-ast)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

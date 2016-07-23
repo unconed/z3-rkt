@@ -26,7 +26,7 @@
 ;; Declare a new sort.
 (define-simple-macro (declare-sort T:id)
   ;; PN: should this be `new-sort!`?
-  (set-value! 'T (z3:mk-uninterpreted-sort (ctx) (make-symbol 'T))))
+  (new-sort! 'T (z3:mk-uninterpreted-sort (ctx) (make-symbol 'T))))
 
 ;; sort-exprs are sort ids, (_ id parameter*), or (id sort-expr*).
 (define (sort-expr->_z3-sort expr)
@@ -43,31 +43,6 @@
     [id
      (cond [(get-sort id) => values]
            [else (z3:-z3-null)])]))
-
-;; Given an expr, convert it to a Z3 AST. This is a really simple recursive descent parser.
-(define (expr->_z3-ast expr)
-  ;(displayln (format "IN: ~a" expr))
-  (define cur-ctx (ctx))
-  (define ast
-    (let go ([expr expr])
-      (match expr
-        ; Non-basic expressions
-        [(list '@app (? symbol? fn-name) args ...)
-         (apply (get-value fn-name) cur-ctx (map go args))]
-        [(list '@app proc args ...)
-         (apply proc cur-ctx (map go args))]
-        ; Numerals
-        [(? exact-integer?) (z3:mk-numeral cur-ctx (number->string expr) (get-sort 'Int))]
-        [(? inexact-real?) (z3:mk-numeral cur-ctx (number->string expr) (get-sort 'Real))]
-        ; Booleans
-        [#t (get-value 'true)]
-        [#f (get-value 'false)]
-        ; Symbols
-        [(? symbol?) (get-value expr)]
-        ; Anything else
-        [_ expr])))
-  ;(displayln (format "Output: ~a ~a ~a" expr ast (z3:ast-to-string cur-ctx ast)))
-  ast)
 
 ;; Given a Z3 AST, convert it to an expression that can be parsed again into an AST,
 ;; assuming the same context. This is the inverse of expr->_z3-ast above.
@@ -173,29 +148,25 @@
                          [K          (in-list Ks)]
                          [field-list (in-list field-lists)])
                 (define p     (format-id K "is-~a"  (syntax->datum K)))
-                (define pre-K (format-id K "pre-~a" (syntax->datum K)))
                 (define accs
                   (for/list ([field field-list])
                     (syntax-parse field
                       [(x:id t) #'x])))
-                (define n (length accs))
-                #`(begin
-                    (match-define-values (#,pre-K #,p (list #,@accs))
-                                         (z3:query-constructor cur-ctx #,con-K #,n))
-                    (define #,K
-                      #,(case n
-                          [(0)  #`(z3:mk-app cur-ctx #,pre-K)]
-                          [else pre-K]))
-                    (set-value! '#,K #,K)
-                    (set-value! '#,p #,p)
-                    #,@(for/list ([acc accs])
-                         #`(set-value! '#,acc #,acc))))))
+                (cond
+                  [(null? accs)
+                   (with-syntax ([mk-K (format-id K "mk-~a" (syntax->datum K))])
+                     #`(define-values (#,K #,p)
+                         (let-values ([(mk-K #,p _) (z3:query-constructor cur-ctx #,con-K 0)])
+                           (values (mk-K) #,p))))]
+                  [else
+                   #`(match-define-values (#,K #,p (list #,@accs))
+                                          (z3:query-constructor cur-ctx #,con-K #,(length accs)))]))))
      (printf "declare-datatypes:~n")
      (pretty-print (syntax->datum gen))
      gen]))
 
-(define (assert expr)
-  (z3:assert-cnstr (ctx) (expr->_z3-ast expr)))
+(define (assert e)
+  (z3:assert-cnstr (ctx) (z3:expr->_z3-ast e)))
 
 (define (check-sat)
   (define-values (rv model) (z3:check-and-get-model (ctx)))
@@ -203,7 +174,7 @@
   rv)
 
 (define (eval-in-model model expr)
-  (match/values (z3:eval (ctx) model (expr->_z3-ast expr))
+  (match/values (z3:eval (ctx) model (z3:expr->_z3-ast expr))
     [((? values) ast) (_z3-ast->expr ast)]
     [(_          _  ) (error 'eval-in-model "Evaluation failed")]))
 

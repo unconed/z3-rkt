@@ -17,17 +17,10 @@
          get-sort
          new-sort!
          get-value
-         set-value!
          get-current-model
          set-current-model!
          get-or-create-instance
-         builtin-vals-eval-at-init
-         builtin-vals
-         builtin-sorts
-         define-builtin-symbol
-         define-builtin-proc
-         define-builtin-sort
-         curryn)
+         )
 
 (define todo/c any/c)
 (provide todo/c)
@@ -57,8 +50,6 @@
 
 (define (get-value id)
   (hash-ref (z3ctx-vals (current-context-info)) id))
-(define (set-value! id v)
-  (hash-set! (z3ctx-vals (current-context-info)) id v))
 
 ;; The current model for this context. This is a mutable box.
 (define (get-current-model)
@@ -90,53 +81,3 @@
   
   (match-define (z3-complex-sort base creator cache) sort)
   (hash-ref! cache params (λ () (creator base params))))
-
-;; Curry a function application exactly n times.
-;; (curryn 0 f a b) is the same as (f a b).
-;; ((curryn 1 f a b) c d) is the same as (f a b c d) and so on.
-(define (curryn n fn . args)
-  (if (zero? n)
-      (apply fn args)
-      (λ more-args (apply curryn (sub1 n) fn (append args more-args)))))
-
-;; This is the prototype namespace for new contexts. It is added to by
-;; define-builtin-symbol and define-builtin-proc below.
-(define/contract builtin-vals-eval-at-init (hash/c symbol? todo/c) (make-hasheq))
-(define/contract builtin-vals              (hash/c symbol? todo/c) (make-hasheq))
-(define/contract builtin-sorts             (hash/c symbol? todo/c) (make-hasheq))
-
-(begin-for-syntax
-  
-  (define/contract (add-smt-suffix id)
-    (identifier? . -> . identifier?)
-    (format-id id "~a/s" (syntax->datum id)))
-  
-  (define/contract (with-syntax-define-proc f v)
-    (identifier? syntax? . -> . syntax?)
-    (with-syntax ([f/s (add-smt-suffix f)])
-      #`(begin
-          ; PN: strange, here it's `v` instead of `(quote f)`
-          (define (f/s . args) `(@app ,#,v ,@args))
-          (hash-set! builtin-vals '#,f #,v)
-          (provide f/s)))))
-
-(define-syntax (define-builtin-symbol stx)
-  (syntax-parse stx
-    [(_ c:id v)
-     (with-syntax ([c/s (add-smt-suffix #'c)])
-       #'(begin
-           (define c/s 'c) ; PN: why not assign `v` to it?
-           (hash-set! builtin-vals-eval-at-init 'c v)
-           (provide c/s)))]))
-
-(define-syntax (define-builtin-proc stx)
-  (syntax-parse stx
-    [(_ f:id v)
-     (with-syntax-define-proc #'f #'v)]
-    [(_ f:id v wrap)
-     (with-syntax-define-proc
-       #'f
-       #'(λ (ctx . args) (apply (wrap (curryn 1 v ctx)) args)))]))
-
-(define-simple-macro (define-builtin-sort x:id v)
-  (hash-set! builtin-sorts 'x v))
