@@ -19,7 +19,10 @@
        (smt:declare-const c () T)
        (smt:assert (=/s c e)))]
     [(_ f:id ([x:id Tx] ...) T e)
-     #'(begin
+     ;; FIXME: This can cause exponential blowup.
+     ;; But I can't figure out how to use `macro-finder` from C API for now
+     #'(define (f x ...) e)
+     #;#'(begin
        (smt:declare-fun f (Tx ...) T)
        (smt:assert (∀/s ([x Tx] ...) (=/s (f x ...) e))))]))
 (define-simple-macro (define-const c:id T e) (define-fun c:id () T e))
