@@ -161,8 +161,8 @@
                   [else
                    #`(match-define-values (#,K #,p (list #,@accs))
                                           (z3:query-constructor cur-ctx #,con-K #,(length accs)))]))))
-     (printf "declare-datatypes:~n")
-     (pretty-print (syntax->datum gen))
+     ;(printf "declare-datatypes:~n")
+     ;(pretty-print (syntax->datum gen))
      gen]))
 
 (define (assert e)

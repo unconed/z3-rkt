@@ -2,7 +2,8 @@
 
 (require (for-syntax racket/base
                      racket/syntax
-                     syntax/parse)
+                     syntax/parse
+                     racket/pretty)
          syntax/parse/define
          "parser.rkt"
          "builtins.rkt")
@@ -15,10 +16,14 @@
            (λ (x)
              (hash-ref! m x (λ () e ...)))))]
     [(_ (f:id x:id ...) e ...)
-     #'(define f
-         (let ([m (make-hash)])
-           (λ (x ...)
-             (hash-ref! m (list x ...) (λ () e ...)))))]))
+     (define ast
+       #'(define f
+           (let ([m (make-hash)])
+             (λ (x ...)
+               (hash-ref! m (list x ...) (λ () e ...))))))
+     ;(printf "define-fun:~n")
+     ;(pretty-print (syntax->datum ast))
+     ast]))
 
 ;; Functions that are written in terms of the base functions in main.rkt and
 ;; builtins.rkt.
