@@ -74,7 +74,8 @@
   (for ([(k fn) (in-hash builtin-sorts)])
     (new-sort! k (fn ctx)))
   ;; XXX This is a giant hack and needs to be generalized.
-  (define int-list-instance (z3:mk-list-sort ctx (smt:internal:make-symbol 'IntList) (get-sort 'Int)))
+  (define int-list-instance
+    (z3:mk-list-sort ctx (smt:internal:make-symbol 'IntList) (get-sort 'Int)))
   (new-sort! 'IntList (datatype-instance-z3-sort int-list-instance))
   (hash-set! vals int-list-key int-list-instance)
 
@@ -82,7 +83,7 @@
     (hash-set! vals k (fn ctx))))
 (provide init-builtins!)
 
-(define int-list-key (gensym))
+(define int-list-key (gensym 'IntList_))
 ;; XXX This is a giant hack and needs to be generalized.
 (define ((get-list-op op) _context . args)
   (match-define (z3ctx ctx vals _ _) (current-context-info))
