@@ -1,10 +1,24 @@
 #lang racket/base
 
 (require (for-syntax racket/base
+                     racket/syntax
                      syntax/parse)
          syntax/parse/define
          "parser.rkt"
          "builtins.rkt")
+
+(define-syntax (define/memo stx)
+  (syntax-parse stx
+    [(_ (f:id x:id) e ...)
+     #'(define f
+         (let ([m (make-hash)])
+           (λ (x)
+             (hash-ref! m x (λ () e ...)))))]
+    [(_ (f:id x:id ...) e ...)
+     #'(define f
+         (let ([m (make-hash)])
+           (λ (x ...)
+             (hash-ref! m (list x ...) (λ () e ...)))))]))
 
 ;; Functions that are written in terms of the base functions in main.rkt and
 ;; builtins.rkt.
@@ -21,7 +35,7 @@
     [(_ f:id ([x:id Tx] ...) T e)
      ;; FIXME: This can cause exponential blowup.
      ;; But I can't figure out how to use `macro-finder` from C API for now
-     #'(define (f x ...) e)
+     #'(define/memo (f x ...) e)
      #;#'(begin
        (smt:declare-fun f (Tx ...) T)
        (smt:assert (∀/s ([x Tx] ...) (=/s (f x ...) e))))]))
