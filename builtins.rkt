@@ -147,20 +147,32 @@
 (define-builtin-sort Real z3:mk-real-sort)
 (define-builtin-sort Array (curryn 2 z3:mk-array-sort))
 
-(define-simple-macro (forall/s ([x:id t] ...) e)
+(define-simple-macro (quant/s mk-quant:id ([x:id t] ...) e)
   (let ([cur-ctx (ctx)])
     (let ([x (z3:mk-fresh-const cur-ctx
                                 (symbol->string 'x)
                                 (smt:internal:sort-expr->_z3-sort 't))] ...)
-      (z3:mk-forall-const cur-ctx 0 (list x ...) '() (z3:expr->_z3-ast e)))))
-(define-simple-macro (exists/s ([x:id t] ...) e)
-  (let ([cur-ctx (ctx)])
-    (let ([x (z3:mk-fresh-const cur-ctx
-                                (symbol->string 'x)
-                                (smt:internal:sort-expr->_z3-sort 't))] ...)
-      (z3:mk-exists-const cur-ctx 0 (list x ...) '() (z3:expr->_z3-ast e)))))
+      (mk-quant cur-ctx 0 (list x ...) '() (z3:expr->_z3-ast e)))))
 
-(provide forall/s
-         (rename-out [forall/s ∀/s])
-         exists/s
-         (rename-out [exists/s ∃/s]))
+(define-simple-macro (forall/s ([x:id t] ...) e)
+  (quant/s z3:mk-forall-const ([x t] ...) e))
+(define-simple-macro (exists/s ([x:id t] ...) e)
+  (quant/s z3:mk-exists-const ([x t] ...) e))
+
+(define/contract ((dynamic-quant mk-quant-const) xs ts e)
+  (any/c . -> . ((listof symbol?) (listof any/c) any/c . -> . z3:z3-ast?))
+  (define cur-ctx (ctx))
+  (define bounds
+    (for/list ([x xs] [t ts])
+      (z3:mk-fresh-const cur-ctx
+                         (symbol->string x)
+                         (smt:internal:sort-expr->_z3-sort t))))
+  (mk-quant-const cur-ctx 0 bounds '() (z3:expr->_z3-ast e)))
+
+(define dynamic-forall/s (dynamic-quant z3:mk-forall-const))
+(define dynamic-exists/s (dynamic-quant z3:mk-exists-const))
+
+(provide forall/s (rename-out [forall/s ∀/s])
+         exists/s (rename-out [exists/s ∃/s])
+         dynamic-forall/s (rename-out [dynamic-forall/s dynamic-∀/s])
+         dynamic-exists/s (rename-out [dynamic-exists/s dynamic-∃/s]))
