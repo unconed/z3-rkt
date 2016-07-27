@@ -61,7 +61,7 @@
 
 ;; Indicates an instance of a datatype (e.g. (List Int) for List).
 (define-struct/contract datatype-instance ([z3-sort todo/c]
-                                           [fns (hash/c todo/c todo/c)])
+                                           [fns (hash/c symbol? todo/c)])
   #:transparent)
 
 ;; A complex sort (e.g. List) has data about the base sort, a creator function
