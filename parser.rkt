@@ -209,9 +209,9 @@
   (combine-out
    with-context
    declare-datatypes
-   declare-sort
-   declare-const
-   declare-fun
+   declare-sort dynamic-declare-sort
+   declare-const dynamic-declare-const
+   declare-fun dynamic-declare-fun
    make-fun
    make-fun/vector
    make-fun/list
