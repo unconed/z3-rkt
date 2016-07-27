@@ -16,6 +16,7 @@
          (struct-out z3-complex-sort)
          get-sort
          new-sort!
+         set-value!
          get-value
          get-current-model
          set-current-model!
@@ -48,6 +49,8 @@
          (error 'new-sort! "Defining a pre-existing sort: ~a" id)]
         [else (hash-set! sorts id v)]))
 
+(define (set-value! id v)
+  (hash-ref! (z3ctx-vals (current-context-info)) id v))
 (define (get-value id)
   (hash-ref (z3ctx-vals (current-context-info)) id))
 

@@ -23,10 +23,14 @@
   (unless (z3:set-logic (ctx) (symbol->string logic))
     (handle-next-error)))
 
+
 ;; Declare a new sort.
-(define-simple-macro (declare-sort T:id)
-  ;; PN: should this be `new-sort!`?
-  (new-sort! 'T (z3:mk-uninterpreted-sort (ctx) (make-symbol 'T))))
+(define/contract (dynamic-declare-sort id)
+  (symbol? . -> . z3:z3-sort?)
+  (define T (z3:mk-uninterpreted-sort (ctx) (make-symbol id)))
+  (new-sort! id T)
+  T)
+(define-simple-macro (declare-sort T:id) (dynamic-declare-sort 'T))
 
 ;; sort-exprs are sort ids, (_ id parameter*), or (id sort-expr*).
 (define (sort-expr->_z3-sort expr)
@@ -51,15 +55,26 @@
   (read (open-input-string (z3:ast-to-string (ctx) ast))))
 
 ;; Make an uninterpreted function given arg sorts and return sort.
-(define (make-uninterpreted name argsorts retsort)
+(define/contract (make-uninterpreted name argsorts retsort)
+  (->i ([name string?] [argsorts (listof todo/c)] [retsort todo/c])
+       (res (argsorts) (if (null? argsorts) z3:z3-app? z3:z3-func-decl?)))
   (define args (map sort-expr->_z3-sort argsorts))
   (define ret (sort-expr->_z3-sort retsort))
   (cond [(null? args) (z3:mk-fresh-const     (ctx) name      ret)]
         [else         (z3:mk-fresh-func-decl (ctx) name args ret)]))
 
 ;; Declare a new function. Each `D` is a sort-expr.
+(define/contract (dynamic-declare-fun f-id doms rng)
+  (->i ([f-id symbol?] [doms (listof todo/c)] [rng todo/c])
+       (res (doms) (if (null? doms) z3:z3-app? z3:z3-func-decl?)))
+  (define f (make-uninterpreted (symbol->string f-id) doms rng))
+  (set-value! f-id f)
+  f)
+(define/contract (dynamic-declare-const c-id rng)
+  (symbol? todo/c . -> . z3:z3-app?)
+  (dynamic-declare-fun c-id '() rng))
 (define-simple-macro (declare-fun f:id (D ...) R)
-  (define f (make-uninterpreted (symbol->string 'f) '(D ...) 'R)))
+  (define f (dynamic-declare-fun 'f '(D ...) 'R)))
 (define-simple-macro (declare-const c:id T) (declare-fun c () T))
 
 (define-syntax-rule (make-fun args ...)
