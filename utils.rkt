@@ -50,7 +50,7 @@
         [else (hash-set! sorts id v)]))
 
 (define (set-value! id v)
-  (hash-ref! (z3ctx-vals (current-context-info)) id v))
+  (hash-set! (z3ctx-vals (current-context-info)) id v))
 (define (get-value id)
   (hash-ref (z3ctx-vals (current-context-info)) id))
 
