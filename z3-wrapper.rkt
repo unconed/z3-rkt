@@ -28,6 +28,8 @@
 
 ;; We wrap all our pointers up with a z3-boxed-pointer. This serves two purposes:
 ;; - we hold a strong ref to the context so that it doesn't get GC'd
+;;   PN: really? Doesn't parameter reference `(current-context-info)` prevent GC?
+;;   PN: ok, probably something about GC moving pointers around. I'm not touching this for now.
 ;; - we can attach pretty printers and other helpful utilities
 (define-struct/contract z3-boxed-pointer ([ctx cpointer? #|_z3-context|#]
                                           [ptr cpointer?])

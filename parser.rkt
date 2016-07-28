@@ -23,7 +23,6 @@
   (unless (z3:set-logic (ctx) (symbol->string logic))
     (handle-next-error)))
 
-
 ;; Declare a new sort.
 (define/contract (dynamic-declare-sort id)
   (symbol? . -> . z3:z3-sort?)
@@ -118,6 +117,48 @@
     (pattern name:id)
     (pattern (name:id field:fld ...))))
 
+;; TODO: type parameters
+(define/contract (dynamic-declare-datatype T-id vrs)
+  (symbol? (listof (or/c symbol? (cons/c symbol? (listof (list/c symbol? symbol?)))))
+           . -> . (values z3:z3-sort?
+                          (listof
+                           (list/c (or/c z3:z3-ast? z3:z3-func-decl?)
+                                   z3:z3-func-decl?
+                                   (listof z3:z3-func-decl?)))))
+  (define cur-ctx (ctx))
+
+  ;; create constructors
+  (define constructors
+    (for/list ([vr (in-list vrs)])
+      (match vr
+        [`(,k ,flds ...) (constr->_z3-constructor k flds)]
+        [(? symbol? k)   (constr->_z3-constructor k '())])))
+
+  ;; define datatype
+  (define T (z3:mk-datatype cur-ctx (make-symbol T-id) constructors))
+  (new-sort! T-id T)
+  
+  ;; define constructor/tester/accessors for each variant
+  (define variants
+    (for/list ([constr (in-list constructors)]
+               [vr     (in-list vrs)])
+      (define-values (K-name field-names)
+        (match vr
+          [`(,k [,x ,_] ...) (values k x)]
+          [(? symbol? k)     (values k '())]))
+      (define-values (pre-K p acs) (z3:query-constructor cur-ctx constr (length field-names)))
+      (define K (if (null? field-names) (pre-K) pre-K))
+      
+      (set-value! K-name K)
+      (set-value! (format-symbol "is-~a" K-name) p)
+      (for ([field-name (in-list field-names)]
+            [ac         (in-list acs        )])
+        (set-value! field-name ac))
+
+      (list K p acs)))
+  
+  (values T variants))
+
 ;; Declare a complex datatype.
 ;; TODO: handle type parameters
 ;; TODO: handle mutually recursive types
@@ -208,7 +249,7 @@
   smt:
   (combine-out
    with-context
-   declare-datatypes
+   declare-datatypes dynamic-declare-datatype
    declare-sort dynamic-declare-sort
    declare-const dynamic-declare-const
    declare-fun dynamic-declare-fun
