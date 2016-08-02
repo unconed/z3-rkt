@@ -1,4 +1,4 @@
-#lang racket/base
+#lang typed/racket/base
 
 (require (for-syntax racket/base
                      racket/syntax
@@ -6,21 +6,22 @@
                      racket/pretty)
          syntax/parse/define
          "parser.rkt"
+         "z3-wrapper.rkt"
          "builtins.rkt")
 
 (define-syntax (define/memo stx)
   (syntax-parse stx
-    [(_ (f:id x:id) e ...)
+    [(_ (f:id [x:id (~literal :) tₓ]) (~literal :) t e ...)
      #'(define f
-         (let ([m (make-hash)])
-           (λ (x)
-             (hash-ref! m x (λ () e ...)))))]
-    [(_ (f:id x:id ...) e ...)
+         (let ([m : (HashTable tₓ t) (make-hash)])
+           (λ ([x : tₓ])
+             (hash-ref! m x (λ () : t e ...)))))]
+    [(_ (f:id [x:id (~literal :) tₓ] ...) : t e ...)
      (define ast
        #'(define f
-           (let ([m (make-hash)])
-             (λ (x ...)
-               (hash-ref! m (list x ...) (λ () e ...))))))
+           (let ([m : (HashTable (List tₓ ...) t) (make-hash)])
+             (λ ([x : tₓ] ...)
+               (hash-ref! m (list x ...) (λ () : t e ...))))))
      ;(printf "define-fun:~n")
      ;(pretty-print (syntax->datum ast))
      ast]))
@@ -40,7 +41,7 @@
     [(_ f:id ([x:id Tx] ...) T e)
      ;; FIXME: This can cause exponential blowup.
      ;; But I can't figure out how to use `macro-finder` from C API for now
-     #'(define/memo (f x ...) e)
+     #'(define/memo (f [x : Any] ...) : Z3:Ast e)
      #;#'(begin
        (smt:declare-fun f (Tx ...) T)
        (smt:assert (∀/s ([x Tx] ...) (=/s (f x ...) e))))]))
