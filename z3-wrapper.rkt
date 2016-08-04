@@ -23,9 +23,7 @@
            set-fun!
            set-current-model!
            get-current-model
-           (struct-out datatype-instance)
-           (struct-out z3-complex-sort)
-           get-or-create-instance)
+           (struct-out datatype-instance))
 
   (define-runtime-path libz3-path
     (case (system-type 'os)
@@ -81,19 +79,6 @@
 
   ;; Indicates an instance of a datatype (e.g. (List Int) for List).
   (struct datatype-instance (z3-sort fns) #:transparent)
-
-  ;; A complex sort (e.g. List) has data about the base sort, a creator function
-  ;; (which takes the base sort and a list of sort parameters to apply and produces
-  ;; an immutable datatype-instance. We also want to cache instances for specific sort
-  ;; parameters (so (List Int) followed by (List Int) should return the same
-  ;; datatype-instance.
-  (struct z3-complex-sort (base-sort creator instance-hash) #:transparent)
-
-  ;; Given a base sort and parameter sorts, get or create a parameterized
-  ;; datatype.
-  (define (get-or-create-instance sort params)
-    (match-define (z3-complex-sort base creator cache) sort)
-    (hash-ref! cache params (λ () (creator base params))))
 
   ;; We wrap all our pointers up with a z3-boxed-pointer. This serves two purposes:
   ;; - we hold a strong ref to the context so that it doesn't get GC'd
@@ -398,8 +383,7 @@
     [#:opaque Z3:Model       z3-model?]
     [#:opaque Z3:Null        z3-null?]
 
-    [#:struct datatype-instance ([z3-sort : Z3:Sort] [fns : (HashTable Symbol -TODO)])]
-    [#:opaque Z3-Complex-Sort z3-complex-sort?])
+    [#:struct datatype-instance ([z3-sort : Z3:Sort] [fns : (HashTable Symbol -TODO)])])
 
   (define-type Z3:Func-Decl (Any * → Z3:Ast)
     ;; TODO re-enable after TR fixes
@@ -407,7 +391,6 @@
 
   (define-type Sort
     (U Z3:Sort
-       Z3-Complex-Sort
        (Any * → Z3:Sort)))
 
   (require/typed/provide (submod ".." z3-ffi)
@@ -431,9 +414,6 @@
     [set-param-value! (Z3:Config String String → Void)]
     [mk-context (Z3:Config → Z3:Context)]
     [set-logic (Z3:Context String → Boolean)]
-
-    
-    [get-or-create-instance (TODO (Listof TODO) → datatype-instance)]
 
     [-z3-null (→ Z3:Null)]
     [expr->_z3-ast (Any → Z3:Ast)]

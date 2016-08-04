@@ -54,12 +54,7 @@
      (define sort (get-sort id))
      ;; The sort can either be a complex sort which needs to be
      ;; instantiated, or a simple array sort.
-     (cond
-       [(z3-complex-sort? sort)
-        (datatype-instance-z3-sort
-          (get-or-create-instance sort (map sort-expr->_z3-sort args)))]
-       [else
-        (apply (cast sort (Any * → Z3:Sort)) (map sort-expr->_z3-sort args))])]
+     (apply (cast sort (Any * → Z3:Sort)) (map sort-expr->_z3-sort args))]
     [(? symbol? id)
      (define sort (get-sort id))
      (cond [(z3-sort? sort) sort]
