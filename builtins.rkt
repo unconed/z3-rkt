@@ -86,16 +86,10 @@
 ;; Initialize builtins. (The current context is assumed to be a parameter.)
 (define (init-builtins!)
   (match-define (z3ctx ctx vals funs sorts _) (current-context-info))
+
   (for ([(k fn) (in-hash builtin-sorts)])
     (new-sort! k (fn ctx)))
   
-  #;(begin
-    ;; XXX This is a giant hack and needs to be generalized.
-    (define int-list-instance
-      (mk-list-sort ctx (smt:internal:make-symbol 'IntList) (assert (get-sort 'Int) z3-sort?)))
-    (new-sort! 'IntList (datatype-instance-z3-sort int-list-instance))
-    (hash-set! vals int-list-key int-list-instance))
-
   (for ([(k fn) (in-hash builtin-vals-eval-at-init)])
     (hash-set! vals k (fn ctx))))
 (provide init-builtins!)
@@ -191,22 +185,3 @@
          exists/s (rename-out [exists/s ∃/s])
          dynamic-forall/s (rename-out [dynamic-forall/s dynamic-∀/s])
          dynamic-exists/s (rename-out [dynamic-exists/s dynamic-∃/s]))
-
-#|
-
-;; XXX This is a giant hack and needs to be generalized.
-(define ((get-list-op op) _context . args)
-  (match-define (z3ctx ctx vals _ _) (current-context-info))
-  (define instance-fns (datatype-instance-fns (hash-ref vals int-list-key)))
-  (define func-decl (hash-ref instance-fns op))
-  ;; Make an app out of it. (Drop the first argument since it'll be the context.)
-  (apply z3:mk-app ctx func-decl args))
-
-;; List operations
-(define-builtin-proc insert (get-list-op 'cons))
-(define-builtin-proc head (get-list-op 'head))
-(define-builtin-proc tail (get-list-op 'tail))
-(define-builtin-symbol nil (get-list-op 'nil)) ; This is called so we can use nil/s directly
-
-
-|#

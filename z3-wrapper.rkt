@@ -23,7 +23,7 @@
            set-fun!
            set-current-model!
            get-current-model
-           (struct-out datatype-instance))
+           (struct-out list-instance))
 
   (define-runtime-path libz3-path
     (case (system-type 'os)
@@ -77,8 +77,8 @@
   (define (set-current-model! new-model)
     (set-box! (z3ctx-current-model (current-context-info)) new-model))
 
-  ;; Indicates an instance of a datatype (e.g. (List Int) for List).
-  (struct datatype-instance (z3-sort fns) #:transparent)
+  ;; Indicates an instance of a List (e.g. List Int) .
+  (struct list-instance (sort nil is-nil cons is-cons head tail) #:transparent)
 
   ;; We wrap all our pointers up with a z3-boxed-pointer. This serves two purposes:
   ;; - we hold a strong ref to the context so that it doesn't get GC'd
@@ -216,12 +216,13 @@
     (head-decl : (_ptr o _z3-func-decl))
     (tail-decl : (_ptr o _z3-func-decl))
     -> (res : _z3-sort) ->
-    (datatype-instance res (hasheq 'nil nil-decl
-                                   'is-nil is-nil-decl
-                                   'cons cons-decl
-                                   'is-cons is-cons-decl
-                                   'head head-decl
-                                   'tail tail-decl)))
+    (list-instance res
+                   nil-decl
+                   is-nil-decl
+                   cons-decl
+                   is-cons-decl
+                   head-decl
+                   tail-decl))
 
   (defz3 mk-true : _z3-context -> _z3-ast)
   (defz3 mk-false : _z3-context -> _z3-ast)
@@ -383,7 +384,13 @@
     [#:opaque Z3:Model       z3-model?]
     [#:opaque Z3:Null        z3-null?]
 
-    [#:struct datatype-instance ([z3-sort : Z3:Sort] [fns : (HashTable Symbol -TODO)])])
+    [#:struct list-instance ([sort : Z3:Sort]
+                             [nil : Z3:Func-Decl]
+                             [is-nil : Z3:Func-Decl]
+                             [cons : Z3:Func-Decl]
+                             [is-cons : Z3:Func-Decl]
+                             [head : Z3:Func-Decl]
+                             [tail : Z3:Func-Decl])])
 
   (define-type Z3:Func-Decl (Any * → Z3:Ast)
     ;; TODO re-enable after TR fixes
@@ -425,7 +432,7 @@
     [mk-real-sort (Z3:Context → Z3:Sort)]
     [mk-bv-sort (Z3:Context Nonnegative-Fixnum → Z3:Sort)]
     [mk-array-sort (Z3:Context Z3:Sort Z3:Sort → Z3:Sort)]
-    [mk-list-sort (Z3:Context Z3:Symbol Z3:Sort → datatype-instance)]
+    [mk-list-sort (Z3:Context Z3:Symbol Z3:Sort → list-instance)]
     [mk-true (Z3:Context → Z3:Ast)]
     [mk-false (Z3:Context → Z3:Ast)]
     [mk-eq (Z3:Context Z3:Ast Z3:Ast → Z3:Ast)]
