@@ -72,27 +72,36 @@
   (read (open-input-string (ast-to-string (ctx) ast))))
 
 (: make-uninterpreted
-   (case-> [String Null TODO → Z3:App]
+   (case-> [String Null TODO → Z3:Ast]
            [String (Pairof TODO (Listof TODO)) TODO → Z3:Func-Decl]
-           [String (Listof TODO) TODO → (U Z3:App Z3:Func-Decl)]))
+           [String (Listof TODO) TODO → (U Z3:Ast Z3:Func-Decl)]))
 ;; Make an uninterpreted function given arg sorts and return sort.
 (define (make-uninterpreted name argsorts retsort)
+  (define cur-ctx (ctx))
   (define args (cast (map sort-expr->_z3-sort argsorts) (Listof Z3:Sort)))
   (define ret (tr:assert (sort-expr->_z3-sort retsort) z3-sort?))
-  (cond [(null? argsorts) (mk-fresh-const     (ctx) name      ret)]
-        [else             (mk-fresh-func-decl (ctx) name args ret)]))
+  (cond [(null? argsorts)
+         (app-to-ast cur-ctx (mk-fresh-const     cur-ctx name      ret))]
+        [else
+         (mk-fresh-func-decl cur-ctx name args ret)]))
 
 (: dynamic-declare-fun
-   (case-> [Symbol Null TODO → Z3:App]
-           [Symbol (Pairof TODO (Listof TODO)) TODO → Z3:Func-Decl]
-           [Symbol (Listof TODO) TODO → (U Z3:App Z3:Func-Decl)]))
+   (case-> [Symbol Null Any → Z3:Ast]
+           [Symbol (Pairof Any (Listof Any)) Any → Z3:Func-Decl]
+           [Symbol (Listof Any) Any → (U Z3:Ast Z3:Func-Decl)]))
 ;; Declare a new function. Each `D` is a sort-expr.
 (define (dynamic-declare-fun f-id doms rng)
-  (define f (make-uninterpreted (symbol->string f-id) doms rng))
-  (set-value! f-id f)
-  f)
+  (cond
+    [(null? doms)
+     (define v (make-uninterpreted (symbol->string f-id) doms rng))
+     (set-val! f-id v)
+     v]
+    [else
+     (define v (make-uninterpreted (symbol->string f-id) doms rng))
+     (set-fun! f-id v)
+     v]))
 
-(: dynamic-declare-const : Symbol TODO → Z3:App)
+(: dynamic-declare-const : Symbol TODO → Z3:Ast)
 (define (dynamic-declare-const c-id rng) (dynamic-declare-fun c-id '() rng))
 
 (define-simple-macro (declare-fun f:id (D ...) R)
@@ -159,10 +168,12 @@
       (define-values (pre-K p acs) (query-constructor cur-ctx constr (length field-names)))
       (define K (if (null? field-names) (pre-K) pre-K))
       
-      (set-value! K-name K)
-      (set-value! (format-symbol "is-~a" K-name) p)
+      (if (z3-ast? K)
+          (set-val! K-name K)
+          (set-fun! K-name K))
+      (set-fun! (format-symbol "is-~a" K-name) (cast p Z3:Func-Decl))
       (for ([field-name field-names] [ac acs])
-        (set-value! field-name ac))
+        (set-fun! field-name (cast ac Z3:Func-Decl)))
 
       (list K p acs)))
   

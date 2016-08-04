@@ -17,8 +17,8 @@
            ctx
            get-sort
            new-sort!
-           get-value
-           set-value!
+           get-val
+           set-val!
            get-fun
            set-fun!
            set-current-model!
@@ -61,9 +61,9 @@
            (error 'new-sort! "Defining a pre-existing sort: ~a" id)]
           [else (hash-set! sorts id v)]))
 
-  (define (set-value! id v)
+  (define (set-val! id v)
     (hash-set! (z3ctx-vals (current-context-info)) id v))
-  (define (get-value id)
+  (define (get-val id)
     (hash-ref (z3ctx-vals (current-context-info)) id))
 
   (define (set-fun! id v)
@@ -168,7 +168,7 @@
           [#t (mk-true cur-ctx)]
           [#f (mk-false cur-ctx)]
           ; Symbols
-          ;[(? symbol? s) (get-value s)]
+          ;[(? symbol? s) (get-val s)]
           ; Anything else
           [_ e])))
     ;(displayln (format "Output: ~a ~a ~a" expr ast (z3:ast-to-string cur-ctx ast)))
@@ -383,6 +383,7 @@
                                 'file-access-error 'invalid-usage
                                 'internal-fatal 'dec-ref-error))
   (define-type TODO Any)
+  (define-type -TODO Nothing)
 
   (require/typed/provide (submod ".." z3-ffi)
     [#:opaque Z3:Config z3-config?]
@@ -397,7 +398,7 @@
     [#:opaque Z3:Model       z3-model?]
     [#:opaque Z3:Null        z3-null?]
 
-    [#:struct datatype-instance ([z3-sort : Z3:Sort] [fns : (HashTable Symbol TODO)])]
+    [#:struct datatype-instance ([z3-sort : Z3:Sort] [fns : (HashTable Symbol -TODO)])]
     [#:opaque Z3-Complex-Sort z3-complex-sort?])
 
   (define-type Z3:Func-Decl (Any * → Z3:Ast)
@@ -411,8 +412,8 @@
 
   (require/typed/provide (submod ".." z3-ffi)
     [#:struct z3ctx ([context : Z3:Context]
-                     [vals : (HashTable Symbol TODO)]
-                     [funs : (HashTable Symbol TODO)]
+                     [vals : (HashTable Symbol Z3:Ast)]
+                     [funs : (HashTable Symbol Z3:Func-Decl)]
                      [sorts : (HashTable Symbol Sort)]
                      [current-model : (Boxof (Option Z3:Model))])
      #:type-name Z3-Ctx]
@@ -420,10 +421,10 @@
     [ctx (→ Z3:Context)]
     [get-sort (Symbol → (Option Sort))]
     [new-sort! (Symbol Z3:Sort → Void)]
-    [set-value! (Symbol TODO → Void)]
-    [get-value (Symbol → TODO)]
-    [set-fun! (Symbol TODO → Void)]
-    [get-fun (Symbol → TODO)]
+    [set-val! (Symbol Z3:Ast → Void)]
+    [get-val (Symbol → Z3:Ast)]
+    [set-fun! (Symbol Z3:Func-Decl → Void)]
+    [get-fun (Symbol → Z3:Func-Decl)]
     [get-current-model (→ Z3:Model)]
     [set-current-model! (Z3:Model → Void)]
     [mk-config (→ Z3:Config)]

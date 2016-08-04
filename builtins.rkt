@@ -17,7 +17,7 @@
 
 ;; This is the prototype namespace for new contexts. It is added to by
 ;; define-builtin-symbol and define-builtin-proc below.
-(define builtin-vals-eval-at-init : (HashTable Symbol (Z3:Context → TODO)) (make-hasheq))
+(define builtin-vals-eval-at-init : (HashTable Symbol (Z3:Context → Z3:Ast)) (make-hasheq))
 (define builtin-sorts             : (HashTable Symbol (Z3:Context → Z3:Sort)) (make-hasheq))
 
 (begin-for-syntax
@@ -88,11 +88,13 @@
   (match-define (z3ctx ctx vals funs sorts _) (current-context-info))
   (for ([(k fn) (in-hash builtin-sorts)])
     (new-sort! k (fn ctx)))
-  ;; XXX This is a giant hack and needs to be generalized.
-  (define int-list-instance
-    (mk-list-sort ctx (smt:internal:make-symbol 'IntList) (assert (get-sort 'Int) z3-sort?)))
-  (new-sort! 'IntList (datatype-instance-z3-sort int-list-instance))
-  (hash-set! vals int-list-key int-list-instance)
+  
+  #;(begin
+    ;; XXX This is a giant hack and needs to be generalized.
+    (define int-list-instance
+      (mk-list-sort ctx (smt:internal:make-symbol 'IntList) (assert (get-sort 'Int) z3-sort?)))
+    (new-sort! 'IntList (datatype-instance-z3-sort int-list-instance))
+    (hash-set! vals int-list-key int-list-instance))
 
   (for ([(k fn) (in-hash builtin-vals-eval-at-init)])
     (hash-set! vals k (fn ctx))))
