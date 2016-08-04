@@ -88,10 +88,9 @@
   ;; TODO: probably no need to expose this struct. Especially not typed
   (struct z3-boxed-pointer (ctx ptr) #:transparent)
   
-  (define (z3-boxed-pointer/c p?)
-    (match-lambda
-      [(z3-boxed-pointer _ x) (p? x)]
-      [_ #f]))
+  (define ((z3-boxed-pointer/c p?) x)
+    (and (z3-boxed-pointer? x)
+         (p? (z3-boxed-pointer-ptr x))))
 
   (struct z3-func-decl-pointer z3-boxed-pointer ()
     #:property prop:procedure (λ (f . args) (apply mk-app (ctx) f (map expr->_z3-ast args)))
@@ -102,10 +101,11 @@
       [(_ _t:id
           (~optional ptr-tag    #:defaults ([(ptr-tag    0) #'#f]))
           (~optional ptr-struct #:defaults ([(ptr-struct 0) #'z3-boxed-pointer])))
-       (with-syntax ([t?
-                      (let* ([s (symbol->string (syntax->datum #'_t))]
-                             [t (substring s 1 (string-length s))])
-                        (format-id #'_t "~a?" t))])
+       (define t
+         (let ([s (symbol->string (syntax->datum #'_t))])
+           (substring s 1 (string-length s))))
+       (with-syntax ([p?       (format-id #'_t       "~a?" t)]
+                     [boxed-p? (format-id #'_t "boxed-~a?" t)])
          #'(begin
              (define-cpointer-type _t #f
                z3-boxed-pointer-ptr
@@ -113,8 +113,8 @@
                  (when ptr-tag
                    (cpointer-push-tag! ptr ptr-tag))
                  (ptr-struct (ctx) ptr)))
-             (define p? (z3-boxed-pointer/c t?))
-             (provide (rename-out [p? t?]))))]))
+             (define boxed-p? (z3-boxed-pointer/c p?))
+             (provide boxed-p?)))]))
 
   (define-syntax defz3
     (syntax-rules (:)
@@ -174,8 +174,8 @@
   (define-z3-type _z3-model)
 
   (define (-z3-null) (z3-boxed-pointer (ctx) #f))
-  (define z3-null? (z3-boxed-pointer/c not))
-  (provide -z3-null z3-null?)
+  (define boxed-z3-null? (z3-boxed-pointer/c not))
+  (provide -z3-null boxed-z3-null?)
 
   ;; Enumerations
   (define _z3-lbool (_enum '(false = -1 undef true) _int32))
@@ -368,21 +368,19 @@
                                 'no-parser 'invalid-pattern 'memout-fail
                                 'file-access-error 'invalid-usage
                                 'internal-fatal 'dec-ref-error))
-  (define-type TODO Any)
-  (define-type -TODO Nothing)
 
   (require/typed/provide (submod ".." z3-ffi)
-    [#:opaque Z3:Config z3-config?]
+    [#:opaque Z3:Config  z3-config?]
     [#:opaque Z3:Context z3-context?]
     ;[#:opaque Z3:Pre-Func-Decl z3-func-decl?] ; TODO re-enable after TR fixes
-    [#:opaque Z3:Symbol      z3-symbol?]
-    [#:opaque Z3:Ast         z3-ast?]
-    [#:opaque Z3:Sort        z3-sort?]
-    [#:opaque Z3:App         z3-app?]
-    [#:opaque Z3:Constructor z3-constructor?]
-    [#:opaque Z3:Pattern     z3-pattern?]
-    [#:opaque Z3:Model       z3-model?]
-    [#:opaque Z3:Null        z3-null?]
+    [#:opaque Z3:Symbol      boxed-z3-symbol?]
+    [#:opaque Z3:Ast         boxed-z3-ast?]
+    [#:opaque Z3:Sort        boxed-z3-sort?]
+    [#:opaque Z3:App         boxed-z3-app?]
+    [#:opaque Z3:Constructor boxed-z3-constructor?]
+    [#:opaque Z3:Pattern     boxed-z3-pattern?]
+    [#:opaque Z3:Model       boxed-z3-model?]
+    [#:opaque Z3:Null        boxed-z3-null?]
 
     [#:struct list-instance ([sort : Z3:Sort]
                              [nil : Z3:Func-Decl]
@@ -396,20 +394,16 @@
     ;; TODO re-enable after TR fixes
     #;(∩ Z3:Pre-Func-Decl (Any * → Z3:App)))
 
-  (define-type Sort
-    (U Z3:Sort
-       (Any * → Z3:Sort)))
-
   (require/typed/provide (submod ".." z3-ffi)
     [#:struct z3ctx ([context : Z3:Context]
                      [vals : (HashTable Symbol Z3:Ast)]
                      [funs : (HashTable Symbol Z3:Func-Decl)]
-                     [sorts : (HashTable Symbol Sort)]
+                     [sorts : (HashTable Symbol Z3:Sort)]
                      [current-model : (Boxof (Option Z3:Model))])
      #:type-name Z3-Ctx]
     [current-context-info (Parameterof (Option Z3-Ctx))]
     [ctx (→ Z3:Context)]
-    [get-sort (Symbol → (Option Sort))]
+    [get-sort (Symbol → (Option Z3:Sort))]
     [new-sort! (Symbol Z3:Sort → Void)]
     [set-val! (Symbol Z3:Ast → Void)]
     [get-val (Symbol → Z3:Ast)]
@@ -529,3 +523,8 @@
 
 (require 'z3-ffi-typed)
 (provide (all-from-out 'z3-ffi-typed))
+
+(define a-cfg (mk-config))
+(define a-ctx (mk-context a-cfg))
+(define a-z3ctx (z3ctx a-ctx (make-hasheq) (make-hasheq) (make-hasheq) (box #f)))
+(define tt (parameterize ([current-context-info a-z3ctx]) (mk-true a-ctx)))
