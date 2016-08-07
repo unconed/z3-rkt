@@ -42,7 +42,7 @@
     (set-logic ctx (assert logic string?)))
   (define vals : (HashTable Symbol Z3:Ast) (make-hasheq))
   (define funs : (HashTable Symbol Z3:Func-Decl) (make-hasheq))
-  (define sorts : (HashTable Symbol Sort) (make-hasheq))
+  (define sorts : (HashTable Symbol Z3:Sort) (make-hasheq))
   (define new-info (z3ctx ctx vals funs sorts (box #f)))
   (smt:with-context
     new-info

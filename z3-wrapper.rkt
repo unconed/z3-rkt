@@ -102,7 +102,7 @@
          (let ([s (symbol->string (syntax->datum #'_t))])
            (substring s 1 (string-length s))))
        (with-syntax ([t-name (format-id #'_t t)]
-                     [boxed-p? (format-id #'_t "boxed-~a?" t)])
+                     [p? (format-id #'_t "~a?" t)])
          #'(begin
              (define-cpointer-type _t #f
                z3-boxed-pointer-ptr
@@ -113,7 +113,7 @@
              (define (boxed-p? x)
                (and (z3-boxed-pointer? x)
                     (eq? (quote t-name) (z3-boxed-pointer-tag x))))
-             (provide boxed-p?)))]))
+             (provide (rename-out [boxed-p? p?]))))]))
 
   (define-syntax defz3
     (syntax-rules (:)
@@ -173,10 +173,10 @@
   (define-z3-type _z3-model)
 
   (define (-z3-null) (z3-boxed-pointer (ctx) #f #f))
-  (define (boxed-z3-null? x)
+  (define (z3-null? x)
     (and (z3-boxed-pointer? x)
          (not (z3-boxed-pointer-ptr x))))
-  (provide -z3-null boxed-z3-null?)
+  (provide -z3-null z3-null?)
 
   ;; Enumerations
   (define _z3-lbool (_enum '(false = -1 undef true) _int32))
@@ -374,14 +374,14 @@
     [#:opaque Z3:Config  z3-config?]
     [#:opaque Z3:Context z3-context?]
     ;[#:opaque Z3:Pre-Func-Decl z3-func-decl?] ; TODO re-enable after TR fixes
-    [#:opaque Z3:Symbol      boxed-z3-symbol?]
-    [#:opaque Z3:Ast         boxed-z3-ast?]
-    [#:opaque Z3:Sort        boxed-z3-sort?]
-    [#:opaque Z3:App         boxed-z3-app?]
-    [#:opaque Z3:Constructor boxed-z3-constructor?]
-    [#:opaque Z3:Pattern     boxed-z3-pattern?]
-    [#:opaque Z3:Model       boxed-z3-model?]
-    [#:opaque Z3:Null        boxed-z3-null?]
+    [#:opaque Z3:Symbol      z3-symbol?]
+    [#:opaque Z3:Ast         z3-ast?]
+    [#:opaque Z3:Sort        z3-sort?]
+    [#:opaque Z3:App         z3-app?]
+    [#:opaque Z3:Constructor z3-constructor?]
+    [#:opaque Z3:Pattern     z3-pattern?]
+    [#:opaque Z3:Model       z3-model?]
+    [#:opaque Z3:Null        z3-null?]
 
     [#:struct list-instance ([sort : Z3:Sort]
                              [nil : Z3:Func-Decl]
