@@ -43,22 +43,14 @@
 
 (: sort-expr->_z3-sort : Any → (U Z3:Sort Z3:Null))
 ;; sort-exprs are sort ids, (_ id parameter*), or (id sort-expr*).
+;; PN: Only have simple sorts for now, which makes it just simple lookup
 (define (sort-expr->_z3-sort expr)
+
   (match expr
-    [(list '_ (? symbol? id) params ...)
-     (define sort (get-sort id))
-     (cond
-       [(procedure? sort) (apply (cast sort (Any * → Z3:Sort)) params)]
-       [else (error 'sort-expr->_z3-sort "unexpected")])]
-    [(list (? symbol? id) args ...)
-     (define sort (get-sort id))
-     ;; The sort can either be a complex sort which needs to be
-     ;; instantiated, or a simple array sort.
-     (apply (cast sort (Any * → Z3:Sort)) (map sort-expr->_z3-sort args))]
     [(? symbol? id)
-     (define sort (get-sort id))
-     (cond [(z3-sort? sort) sort]
-           [else (-z3-null)])]))
+     (define s (get-sort id))
+     (if (z3-sort? s) s (-z3-null))]
+    [_ (error 'sort-expr->_z3-sort "unexpected: ~a" expr)]))
 
 (: _z3-ast->expr : Z3:Ast → Any)
 ;; Given a Z3 AST, convert it to an expression that can be parsed again into an AST,
@@ -67,9 +59,9 @@
   (read (open-input-string (ast-to-string (ctx) ast))))
 
 (: make-uninterpreted
-   (case-> [String Null TODO → Z3:Ast]
-           [String (Pairof TODO (Listof TODO)) TODO → Z3:Func-Decl]
-           [String (Listof TODO) TODO → (U Z3:Ast Z3:Func-Decl)]))
+   (case-> [String Null Any → Z3:Ast]
+           [String (Pairof Any (Listof Any)) Any → Z3:Func-Decl]
+           [String (Listof Any) Any → (U Z3:Ast Z3:Func-Decl)]))
 ;; Make an uninterpreted function given arg sorts and return sort.
 (define (make-uninterpreted name argsorts retsort)
   (define cur-ctx (ctx))
@@ -96,7 +88,7 @@
      (set-fun! f-id v)
      v]))
 
-(: dynamic-declare-const : Symbol TODO → Z3:Ast)
+(: dynamic-declare-const : Symbol Any → Z3:Ast)
 (define (dynamic-declare-const c-id rng) (dynamic-declare-fun c-id '() rng))
 
 (define-simple-macro (declare-fun f:id (D ...) R)

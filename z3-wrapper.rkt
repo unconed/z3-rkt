@@ -85,13 +85,10 @@
   ;;   PN: really? Doesn't parameter reference `(current-context-info)` prevent GC?
   ;;   PN: ok, probably something about GC moving pointers around. I'm not touching this for now.
   ;; - we can attach pretty printers and other helpful utilities
-  ;; TODO: probably no need to expose this struct. Especially not typed
-  (struct z3-boxed-pointer (ctx ptr) #:transparent)
+  ;; The extra `tag` field is for getting around TR's new any-wrap/c contract
+  ;; that disallows extracting cpointer fields
+  (struct z3-boxed-pointer (ctx ptr tag) #:transparent)
   
-  (define ((z3-boxed-pointer/c p?) x)
-    (and (z3-boxed-pointer? x)
-         (p? (z3-boxed-pointer-ptr x))))
-
   (struct z3-func-decl-pointer z3-boxed-pointer ()
     #:property prop:procedure (λ (f . args) (apply mk-app (ctx) f (map expr->_z3-ast args)))
     #:transparent)
@@ -104,7 +101,7 @@
        (define t
          (let ([s (symbol->string (syntax->datum #'_t))])
            (substring s 1 (string-length s))))
-       (with-syntax ([p?       (format-id #'_t       "~a?" t)]
+       (with-syntax ([t-name (format-id #'_t t)]
                      [boxed-p? (format-id #'_t "boxed-~a?" t)])
          #'(begin
              (define-cpointer-type _t #f
@@ -112,8 +109,10 @@
                (λ (ptr)
                  (when ptr-tag
                    (cpointer-push-tag! ptr ptr-tag))
-                 (ptr-struct (ctx) ptr)))
-             (define boxed-p? (z3-boxed-pointer/c p?))
+                 (ptr-struct (ctx) ptr (quote t-name))))
+             (define (boxed-p? x)
+               (and (z3-boxed-pointer? x)
+                    (eq? (quote t-name) (z3-boxed-pointer-tag x))))
              (provide boxed-p?)))]))
 
   (define-syntax defz3
@@ -173,8 +172,10 @@
   (define-z3-type _z3-pattern)
   (define-z3-type _z3-model)
 
-  (define (-z3-null) (z3-boxed-pointer (ctx) #f))
-  (define boxed-z3-null? (z3-boxed-pointer/c not))
+  (define (-z3-null) (z3-boxed-pointer (ctx) #f #f))
+  (define (boxed-z3-null? x)
+    (and (z3-boxed-pointer? x)
+         (not (z3-boxed-pointer-ptr x))))
   (provide -z3-null boxed-z3-null?)
 
   ;; Enumerations
