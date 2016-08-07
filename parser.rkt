@@ -67,7 +67,7 @@
   (define args (cast (map sort-expr->_z3-sort argsorts) (Listof Z3:Sort)))
   (define ret (tr:assert (sort-expr->_z3-sort retsort) z3-sort?))
   (cond [(null? argsorts)
-         (app-to-ast cur-ctx (mk-fresh-const     cur-ctx name      ret))]
+         (app-to-ast cur-ctx (mk-fresh-const cur-ctx name ret))]
         [else
          (mk-fresh-func-decl cur-ctx name args ret)]))
 
@@ -79,7 +79,7 @@
 (define (dynamic-declare-fun f-id doms rng)
   (cond
     [(null? doms)
-     (define v (make-uninterpreted (symbol->string f-id) doms rng))
+     (define v (make-uninterpreted (symbol->string f-id) '() rng))
      (set-val! f-id v)
      v]
     [else

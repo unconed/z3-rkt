@@ -65,9 +65,9 @@
     (hash-ref (z3ctx-vals (current-context-info)) id))
 
   (define (set-fun! id v)
-    (hash-set! (z3ctx-vals (current-context-info)) id v))
+    (hash-set! (z3ctx-funs (current-context-info)) id v))
   (define (get-fun id)
-    (hash-ref (z3ctx-vals (current-context-info)) id))
+    (hash-ref (z3ctx-funs (current-context-info)) id))
 
   ;; The current model for this context. This is a mutable box.
   (define (get-current-model)
@@ -155,6 +155,7 @@
           ; Symbols
           ;[(? symbol? s) (get-val s)]
           ; Anything else
+          [(? boxed-z3-app? e) (app-to-ast cur-ctx e)]
           [(? boxed-z3-ast? e) e]
           [_ (error 'expr->_z3-ast "unexpected: ~a" e)])))
     ;(displayln (format "Output: ~a ~a ~a" expr ast (z3:ast-to-string cur-ctx ast)))
@@ -393,11 +394,11 @@
                              [head : Z3:Func-Decl]
                              [tail : Z3:Func-Decl])])
 
-  (define-type Z3:Func-Decl (Any * → Z3:Ast)
+  (define-type Z3:Func-Decl (Expr * → Z3:Ast)
     ;; TODO re-enable after TR fixes
     #;(∩ Z3:Pre-Func-Decl (Any * → Z3:App)))
 
-  (define-type Expr (U Z3:Ast Real Boolean))
+  (define-type Expr (U Z3:Ast Z3:App Real Boolean))
 
   (require/typed/provide (submod ".." z3-ffi)
     [#:struct z3ctx ([context : Z3:Context]
