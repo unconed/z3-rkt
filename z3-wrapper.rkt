@@ -396,7 +396,7 @@
 
   (define-type Z3:Func-Decl (Expr * → Z3:Ast)
     ;; TODO re-enable after TR fixes
-    #;(∩ Z3:Pre-Func-Decl (Any * → Z3:App)))
+    #;(∩ Z3:Pre-Func-Decl (Expr * → Z3:App)))
 
   (define-type Expr (U Z3:Ast Z3:App Real Boolean))
 
@@ -482,8 +482,8 @@
     [query-constructor
      (Z3:Context Z3:Constructor Nonnegative-Fixnum →
                  (Values Z3:Func-Decl
-                         (Any → Z3:Ast) ;Z3:Func-Decl
-                         (Listof (Any → Z3:Ast) #;Z3:Func-Decl)))]
+                         (Expr → Z3:Ast) ;Z3:Func-Decl
+                         (Listof (Expr → Z3:Ast) #;Z3:Func-Decl)))]
 
     [mk-datatype (Z3:Context Z3:Symbol (Listof Z3:Constructor) → Z3:Sort)]
 

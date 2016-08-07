@@ -41,7 +41,7 @@
     [(_ f:id ([x:id Tx] ...) T e)
      ;; FIXME: This can cause exponential blowup.
      ;; But I can't figure out how to use `macro-finder` from C API for now
-     #'(define/memo (f [x : Any] ...) : Z3:Ast e)
+     #'(define/memo (f [x : Expr] ...) : Z3:Ast e)
      #;#'(begin
        (smt:declare-fun f (Tx ...) T)
        (smt:assert (∀/s ([x Tx] ...) (=/s (f x ...) e))))]))
