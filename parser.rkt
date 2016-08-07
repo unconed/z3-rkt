@@ -45,7 +45,6 @@
 ;; sort-exprs are sort ids, (_ id parameter*), or (id sort-expr*).
 ;; PN: Only have simple sorts for now, which makes it just simple lookup
 (define (sort-expr->_z3-sort expr)
-
   (match expr
     [(? symbol? id)
      (define s (get-sort id))
@@ -238,9 +237,8 @@
      ;(pretty-print (syntax->datum gen))
      gen]))
 
-(: assert : Any → Void)
+(: assert : Expr → Void)
 (define (assert e)
-  (printf "assert: ~a~n" e)
   (assert-cnstr (ctx) (expr->_z3-ast e)))
 
 (: check-sat : → Z3:Sat-LBool)
@@ -250,11 +248,11 @@
     (set-current-model! model))
   rv)
 
-(: smt:eval : Any → Any)
+(: smt:eval : Expr → Any)
 (define (smt:eval expr)
   (eval-in-model (get-current-model) expr))
 
-(: eval-in-model : Z3:Model Any → Any)
+(: eval-in-model : Z3:Model Expr → Any)
 (define (eval-in-model model expr)
   (match/values (eval (ctx) model (expr->_z3-ast expr))
     [((? values) (? values ast)) (_z3-ast->expr ast)]

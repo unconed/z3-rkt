@@ -102,7 +102,8 @@
          (let ([s (symbol->string (syntax->datum #'_t))])
            (substring s 1 (string-length s))))
        (with-syntax ([t-name (format-id #'_t t)]
-                     [p? (format-id #'_t "~a?" t)])
+                     [p? (format-id #'_t "~a?" t)]
+                     [boxed-p? (format-id #'_t "boxed-~a?" t)])
          #'(begin
              (define-cpointer-type _t #f
                z3-boxed-pointer-ptr
@@ -154,7 +155,8 @@
           ; Symbols
           ;[(? symbol? s) (get-val s)]
           ; Anything else
-          [_ e])))
+          [(? boxed-z3-ast? e) e]
+          [_ (error 'expr->_z3-ast "unexpected: ~a" e)])))
     ;(displayln (format "Output: ~a ~a ~a" expr ast (z3:ast-to-string cur-ctx ast)))
     ast)
   (provide expr->_z3-ast)
@@ -395,6 +397,8 @@
     ;; TODO re-enable after TR fixes
     #;(∩ Z3:Pre-Func-Decl (Any * → Z3:App)))
 
+  (define-type Expr (U Z3:Ast Real Boolean))
+
   (require/typed/provide (submod ".." z3-ffi)
     [#:struct z3ctx ([context : Z3:Context]
                      [vals : (HashTable Symbol Z3:Ast)]
@@ -418,7 +422,7 @@
     [set-logic (Z3:Context String → Boolean)]
 
     [-z3-null (→ Z3:Null)]
-    [expr->_z3-ast (Any → Z3:Ast)]
+    [expr->_z3-ast (Expr → Z3:Ast)]
     
     [mk-string-symbol (Z3:Context String → Z3:Symbol)]
     [mk-uninterpreted-sort (Z3:Context Z3:Symbol → Z3:Sort)]

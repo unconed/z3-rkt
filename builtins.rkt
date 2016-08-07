@@ -64,14 +64,16 @@
             #`(begin
                 (define f/s
                   (let ([f-ctx
-                         (λ (x ...)
+                         (λ ([x : Expr] ...)
                             (v (ctx) (expr->_z3-ast x) ...))])
                     (wrap f-ctx)))
                 (provide f/s)))]
          [(~literal *)
           #`(begin
               (define f/s
-                (let ([f-ctx (λ xs (apply v (ctx) (map expr->_z3-ast xs)))])
+                (let ()
+                  (define (f-ctx . [xs : Expr *])
+                    (apply v (ctx) (map expr->_z3-ast xs)))
                   (wrap f-ctx)))
               (provide f/s))]))]))
 
@@ -168,7 +170,7 @@
                     (Listof Z3:Pattern)
                     Z3:Ast →
                     Z3:Ast) →
-   (Listof Symbol) (Listof Any) Any → Z3:Ast)
+   (Listof Symbol) (Listof Any) Expr → Z3:Ast)
 (define ((dynamic-quant mk-quant-const) xs ts e)
   (define cur-ctx (ctx))
   (define bounds
