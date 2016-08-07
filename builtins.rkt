@@ -34,7 +34,7 @@
           (provide f/s))))
   (define-syntax-class arity
     #:description "function arity (natural or *)"
-    (pattern (~or n:nat (~literal *)))))
+    (pattern (~or n:nat (~literal *) (~literal lassoc) (~literal rassoc)))))
 
 (define-syntax (define-builtin-symbol stx)
   (syntax-parse stx
@@ -49,10 +49,7 @@
 
 (define-syntax (define-builtin-proc stx)
   (syntax-parse stx
-    [(_ f:id
-        v
-        n:arity
-        (~optional wrap #:defaults ([(wrap 0) #'values])))
+    [(_ f:id v n:arity)
      (with-syntax ([f/s (add-smt-suffix #'f)])
        (syntax-parse #'n
          [k:nat
@@ -61,20 +58,28 @@
                           #f
                           (build-list (syntax->datum #'k)
                                       (λ (i) (format-id #f "x~a" i))))])
-            #`(begin
-                (define f/s
-                  (let ([f-ctx
-                         (λ ([x : Expr] ...)
-                            (v (ctx) (expr->_z3-ast x) ...))])
-                    (wrap f-ctx)))
+            #'(begin
+                (define (f/s [x : Expr] ...)
+                  (v (ctx) (expr->_z3-ast x) ...))
                 (provide f/s)))]
          [(~literal *)
-          #`(begin
+          #'(begin
+              (define (f/s . [xs : Expr *])
+                (apply v (ctx) (map expr->_z3-ast xs)))
+              (provide f/s))]
+         [(~literal lassoc)
+          #'(begin
               (define f/s
-                (let ()
-                  (define (f-ctx . [xs : Expr *])
-                    (apply v (ctx) (map expr->_z3-ast xs)))
-                  (wrap f-ctx)))
+                (lassoc
+                 (λ ([x : Expr] [y : Expr])
+                   (v (ctx) (expr->_z3-ast x) (expr->_z3-ast y)))))
+              (provide f/s))]
+         [(~literal rassoc)
+          #'(begin
+              (define f/s
+                (rassoc
+                 (λ ([x : Expr] [y : Expr])
+                   (v (ctx) (expr->_z3-ast x) (expr->_z3-ast y)))))
               (provide f/s))]))]))
 
 (define-simple-macro (define-builtin-sort x:id v)
@@ -122,8 +127,8 @@
 (define-builtin-proc not mk-not 1)
 (define-builtin-proc ite mk-ite 3)
 (define-builtin-proc iff mk-iff 2)
-(define-builtin-proc => mk-implies 2 rassoc)
-(define-builtin-proc xor mk-xor 2 lassoc)
+(define-builtin-proc => mk-implies rassoc)
+(define-builtin-proc xor mk-xor lassoc)
 ;; These functions already accept an arbitrary number of arguments
 (define-builtin-proc and mk-and *)
 (define-builtin-proc or mk-or *)
@@ -131,10 +136,10 @@
 (define-builtin-proc * mk-mul *)
 (define-builtin-proc - mk-sub *)
 ;; These don't
-(define-builtin-proc / mk-div 2 lassoc)
-(define-builtin-proc div mk-div 2 lassoc)
-(define-builtin-proc mod mk-mod 2 lassoc)
-(define-builtin-proc rem mk-rem 2 lassoc)
+(define-builtin-proc / mk-div lassoc)
+(define-builtin-proc div mk-div lassoc)
+(define-builtin-proc mod mk-mod lassoc)
+(define-builtin-proc rem mk-rem lassoc)
 (define-builtin-proc is-int mk-is-int 1)
 ;; XXX Comparisons are chainable (i.e. (< a b c) == (and (< a b) (< b c)))
 (define-builtin-proc < mk-lt 2)
