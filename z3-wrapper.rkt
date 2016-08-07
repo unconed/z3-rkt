@@ -138,6 +138,7 @@
          (args : (_list i argtype)) -> rettype)]))
 
   ;; Given an expr, convert it to a Z3 AST. This is a really simple recursive descent parser.
+  ;; PN: This no longer is a parser. It only coerces some base values now
   (define (expr->_z3-ast e)
     ;(displayln (format "IN: ~a" e))
     (define cur-ctx (ctx))
@@ -149,11 +150,6 @@
            (mk-numeral cur-ctx (number->string n) (mk-int-sort cur-ctx))]
           [(?  inexact-real? r)
            (mk-numeral cur-ctx (number->string r) (mk-real-sort cur-ctx))]
-          ; Booleans
-          [#t (mk-true cur-ctx)]
-          [#f (mk-false cur-ctx)]
-          ; Symbols
-          ;[(? symbol? s) (get-val s)]
           ; Anything else
           [(? boxed-z3-app? e) (app-to-ast cur-ctx e)]
           [(? boxed-z3-ast? e) e]
@@ -398,7 +394,7 @@
     ;; TODO re-enable after TR fixes
     #;(∩ Z3:Pre-Func-Decl (Expr * → Z3:App)))
 
-  (define-type Expr (U Z3:Ast Z3:App Real Boolean))
+  (define-type Expr (U Z3:Ast Z3:App Real))
 
   (require/typed/provide (submod ".." z3-ffi)
     [#:struct z3ctx ([context : Z3:Context]
