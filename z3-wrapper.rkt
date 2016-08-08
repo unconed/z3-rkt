@@ -87,7 +87,7 @@
   ;; - we can attach pretty printers and other helpful utilities
   ;; The extra `tag` field is for getting around TR's new any-wrap/c contract
   ;; that disallows extracting cpointer fields
-  (struct z3-boxed-pointer (ctx ptr tag) #:transparent)
+  (struct z3-boxed-pointer (ctx ptr) #:transparent)
   
   (struct z3-func-decl-pointer z3-boxed-pointer ()
     #:property prop:procedure (λ (f . args) (apply mk-app (ctx) f (map expr->_z3-ast args)))
@@ -103,17 +103,16 @@
            (substring s 1 (string-length s))))
        (with-syntax ([t-name (format-id #'_t t)]
                      [p? (format-id #'_t "~a?" t)]
-                     [boxed-p? (format-id #'_t "boxed-~a?" t)])
+                     [boxed-p? (format-id #'_t "boxed-~a?" t)]
+                     [boxed-k  (format-id #'_t "boxed-~a"  t)])
          #'(begin
+             (struct boxed-k ptr-struct () #:transparent)
              (define-cpointer-type _t #f
                z3-boxed-pointer-ptr
                (λ (ptr)
                  (when ptr-tag
                    (cpointer-push-tag! ptr ptr-tag))
-                 (ptr-struct (ctx) ptr (quote t-name))))
-             (define (boxed-p? x)
-               (and (z3-boxed-pointer? x)
-                    (eq? (quote t-name) (z3-boxed-pointer-tag x))))
+                 (boxed-k (ctx) ptr)))
              (provide (rename-out [boxed-p? p?]))))]))
 
   (define-syntax defz3
@@ -171,10 +170,11 @@
   (define-z3-type _z3-pattern)
   (define-z3-type _z3-model)
 
-  (define (-z3-null) (z3-boxed-pointer (ctx) #f #f))
-  (define (z3-null? x)
-    (and (z3-boxed-pointer? x)
-         (not (z3-boxed-pointer-ptr x))))
+  (define-values (-z3-null z3-null?)
+    (let ()
+      (struct boxed-null z3-boxed-pointer () #:transparent)
+      (values (λ () (boxed-null (ctx) #f))
+              boxed-null?)))
   (provide -z3-null z3-null?)
 
   ;; Enumerations
@@ -525,8 +525,3 @@
 
 (require 'z3-ffi-typed)
 (provide (all-from-out 'z3-ffi-typed))
-
-(define a-cfg (mk-config))
-(define a-ctx (mk-context a-cfg))
-(define a-z3ctx (z3ctx a-ctx (make-hasheq) (make-hasheq) (make-hasheq) (box #f)))
-(define tt (parameterize ([current-context-info a-z3ctx]) (mk-true a-ctx)))

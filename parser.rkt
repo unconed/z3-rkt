@@ -49,6 +49,8 @@
     [(? symbol? id)
      (define s (get-sort id))
      (if (z3-sort? s) s (-z3-null))]
+    [(? z3-sort? expr) expr]
+    [(? z3-null? expr) expr]
     [_ (error 'sort-expr->_z3-sort "unexpected: ~a" expr)]))
 
 (: _z3-ast->expr : Z3:Ast → Any)
