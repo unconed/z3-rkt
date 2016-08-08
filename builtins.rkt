@@ -90,16 +90,19 @@
 ;;;;; from old `builtins.rkt`
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; Initialize builtins. (The current context is assumed to be a parameter.)
-(define (init-builtins!)
-  (match-define (z3ctx ctx vals funs sorts _) (current-context-info))
-
-  (for ([(k fn) (in-hash builtin-sorts)])
-    (new-sort! k (fn ctx)))
-  
-  (for ([(k fn) (in-hash builtin-vals-eval-at-init)])
-    (hash-set! vals k (fn ctx))))
-(provide init-builtins!)
+;; Initialize builtins.
+(: init-builtins : → (Values (HashTable Symbol Z3:Ast)
+                             (HashTable Symbol Z3:Func-Decl)
+                             (HashTable Symbol Z3:Sort)))
+(define (init-builtins)
+  (define cur-ctx (ctx))
+  (values
+   (for/hasheq : (HashTable Symbol Z3:Ast) ([(k fn) (in-hash builtin-vals-eval-at-init)])
+     (values k (fn cur-ctx)))
+   (hasheq)
+   (for/hasheq : (HashTable Symbol Z3:Sort) ([(k fn) (in-hash builtin-sorts)])
+     (values k (fn cur-ctx)))))
+(provide init-builtins)
 
 (define int-list-key : Symbol (gensym 'IntList_))
 
@@ -156,6 +159,17 @@
 (define-builtin-sort Int mk-int-sort)
 (define-builtin-sort Real mk-real-sort)
 ;(define-builtin-sort Array (curryn 2 z3:mk-array-sort))
+
+(define-syntax hash-set*
+  (syntax-rules ()
+    [(_ m) m]
+    [(_ m [x y] rst ...) (hash-set* (hash-set m x y) rst ...)]))
+
+(define-simple-macro (with-val ([x:id v] ...) e ...)
+  (match-let ([(z3ctx ctx vals funs sorts mdl) (current-context-info)])
+    (define vals* (hash-set* vals [x v] ...))
+    (define ctx-info* (z3ctx ctx vals* funs sorts mdl))
+    (with-context ctx-info* e ...)))
 
 (define-simple-macro (quant/s mk-quant:id ([x:id t] ...) e)
   (let ([cur-ctx (ctx)])

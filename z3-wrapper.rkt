@@ -40,10 +40,10 @@
 
   ;; Z3 context info structure.
   (struct z3ctx (context
-                 vals
-                 funs
-                 sorts
-                 current-model
+                 [vals #:mutable]
+                 [funs #:mutable]
+                 [sorts #:mutable]
+                 [current-model #:mutable]
                  ) #:transparent)
 
   ; This must be parameterized every time any syntax is used
@@ -54,28 +54,35 @@
   ;; A symbol table for sorts
   (define (get-sort id) (hash-ref (z3ctx-sorts (current-context-info)) id #f))
   (define (new-sort! id v)
-    (define sorts (z3ctx-sorts (current-context-info)))
+    (define ctx-info (current-context-info))
+    (define sorts (z3ctx-sorts ctx-info))
     (cond [(hash-has-key? sorts id)
            (error 'new-sort! "Defining a pre-existing sort: ~a" id)]
-          [else (hash-set! sorts id v)]))
+          [else
+           (set-z3ctx-sorts! ctx-info (hash-set sorts id v))]))
 
   (define (set-val! id v)
-    (hash-set! (z3ctx-vals (current-context-info)) id v))
+    (define ctx-info (current-context-info))
+    (define vals (z3ctx-vals ctx-info))
+    (set-z3ctx-vals! ctx-info (hash-set vals id v)))
   (define (get-val id)
     (hash-ref (z3ctx-vals (current-context-info)) id))
 
   (define (set-fun! id v)
-    (hash-set! (z3ctx-funs (current-context-info)) id v))
+    (define ctx-info (current-context-info))
+    (define funs (z3ctx-funs ctx-info))
+    (set-z3ctx-funs! ctx-info (hash-set funs id v)))
   (define (get-fun id)
     (hash-ref (z3ctx-funs (current-context-info)) id))
 
   ;; The current model for this context. This is a mutable box.
   (define (get-current-model)
     (cond
-      [(unbox (z3ctx-current-model (current-context-info))) => values]
+      [(z3ctx-current-model (current-context-info)) => values]
       [else (error 'get-current-model "No model found")]))
   (define (set-current-model! new-model)
-    (set-box! (z3ctx-current-model (current-context-info)) new-model))
+    (define ctx-info (current-context-info))
+    (set-z3ctx-current-model! ctx-info new-model))
 
   ;; Indicates an instance of a List (e.g. List Int) .
   (struct list-instance (sort nil is-nil cons is-cons head tail) #:transparent)
@@ -401,7 +408,7 @@
                      [vals : (HashTable Symbol Z3:Ast)]
                      [funs : (HashTable Symbol Z3:Func-Decl)]
                      [sorts : (HashTable Symbol Z3:Sort)]
-                     [current-model : (Boxof (Option Z3:Model))])
+                     [current-model : (Option Z3:Model)])
      #:type-name Z3-Ctx]
     [current-context-info (Parameterof (Option Z3-Ctx))]
     [ctx (→ Z3:Context)]
