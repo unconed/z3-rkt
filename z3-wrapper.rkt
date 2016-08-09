@@ -156,6 +156,8 @@
            (mk-numeral cur-ctx (number->string n) (mk-int-sort cur-ctx))]
           [(?  inexact-real? r)
            (mk-numeral cur-ctx (number->string r) (mk-real-sort cur-ctx))]
+          ;; Delayed constant
+          [(? symbol? x) (get-val x)]
           ; Anything else
           [(? boxed-z3-app? e) (app-to-ast cur-ctx e)]
           [(? boxed-z3-ast? e) e]
@@ -388,7 +390,6 @@
     [#:opaque Z3:Pattern     z3-pattern?]
     [#:opaque Z3:Model       z3-model?]
     [#:opaque Z3:Null        z3-null?]
-
     [#:struct list-instance ([sort : Z3:Sort]
                              [nil : Z3:Func-Decl]
                              [is-nil : Z3:Func-Decl]
@@ -401,7 +402,7 @@
     ;; TODO re-enable after TR fixes
     #;(∩ Z3:Pre-Func-Decl (Expr * → Z3:App)))
 
-  (define-type Expr (U Z3:Ast Z3:App Real))
+  (define-type Expr (U Z3:Ast Z3:App Real Symbol))
 
   (require/typed/provide (submod ".." z3-ffi)
     [#:struct z3ctx ([context : Z3:Context]
