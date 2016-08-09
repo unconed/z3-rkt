@@ -143,6 +143,7 @@
 (define-builtin-proc div mk-div lassoc)
 (define-builtin-proc mod mk-mod lassoc)
 (define-builtin-proc rem mk-rem lassoc)
+(define-builtin-proc ^ mk-power 2)
 (define-builtin-proc is-int mk-is-int 1)
 ;; XXX Comparisons are chainable (i.e. (< a b c) == (and (< a b) (< b c)))
 (define-builtin-proc < mk-lt 2)
@@ -162,7 +163,7 @@
 
 ;; Apply
 (: @/s : Symbol Expr * → Z3:Ast)
-(define (@/s f . xs) (apply mk-app (ctx) (get-fun f) (map expr->_z3-ast xs)))
+(define (@/s f . xs) (apply (get-fun f) (map expr->_z3-ast xs)))
 (provide @/s)
 
 (define-syntax hash-set*
@@ -170,42 +171,52 @@
     [(_ m) m]
     [(_ m [x y] rst ...) (hash-set* (hash-set m x y) rst ...)]))
 
-(define-simple-macro (with-val ([x:id v] ...) e ...)
+(define-syntax-rule (with-vals x->v e ...)
   (match-let ([(z3ctx ctx vals funs sorts mdl) (current-context-info)])
-    (define vals* (hash-set* vals [x v] ...))
-    (define ctx-info* (z3ctx ctx vals* funs sorts mdl))
-    (with-context ctx-info* e ...)))
+    (define vals*
+      (for/fold ([vals* : (HashTable Symbol Z3:Ast) vals])
+                ([(x v) x->v])
+        (hash-set vals* x v)))
+    (smt:with-context (z3ctx ctx vals* funs sorts mdl)
+      e ...)))
 
-(define-simple-macro (quant/s mk-quant:id ([x:id t] ...) e)
-  (let ([cur-ctx (ctx)])
-    (let ([x (mk-fresh-const cur-ctx
-                             (symbol->string 'x)
-                             (assert (smt:internal:sort-expr->_z3-sort 't) z3-sort?))] ...)
-      (mk-quant cur-ctx 0 (list x ...) '() (expr->_z3-ast e)))))
+(define-syntax (quant/s stx)
+  (syntax-parse stx
+    [(_ _ () e) #'e]
+    [(_ mk-quant:id ([x:id t] ...) e)
+     #'(let ([cur-ctx (ctx)])
+         (let ([x (mk-fresh-const cur-ctx
+                                  (symbol->string 'x)
+                                  (assert (smt:internal:sort-expr->_z3-sort 't) z3-sort?))] ...)
+           (mk-quant cur-ctx 0 (list x ...) '() (expr->_z3-ast e))))]))
 
 (define-simple-macro (forall/s ([x:id t] ...) e)
   (quant/s mk-forall-const ([x t] ...) e))
 (define-simple-macro (exists/s ([x:id t] ...) e)
   (quant/s mk-exists-const ([x t] ...) e))
 
-(: dynamic-quant : (Z3:Context
-                    Nonnegative-Fixnum
-                    (Listof Z3:App)
-                    (Listof Z3:Pattern)
-                    Z3:Ast →
-                    Z3:Ast) →
-   (Listof Symbol) (Listof Any) Expr → Z3:Ast)
-(define ((dynamic-quant mk-quant-const) xs ts e)
-  (define cur-ctx (ctx))
-  (define bounds
-    (for/list : (Listof Z3:App) ([x xs] [t ts])
-      (mk-fresh-const cur-ctx
-                      (symbol->string x)
-                      (assert (smt:internal:sort-expr->_z3-sort t) z3-sort?))))
-  (mk-quant-const cur-ctx 0 bounds '() (expr->_z3-ast e)))
+(define-syntax-rule (dynamic-quant/s mk-quant-const xs* ts e)
+  (match xs*
+    ['() e]
+    [xs
+     (define cur-ctx (ctx))
+     (define bounds
+       (for/list : (Listof Z3:App) ([x xs] [t ts])
+         (mk-fresh-const cur-ctx
+                         (symbol->string x)
+                         (assert (smt:internal:sort-expr->_z3-sort t) z3-sort?))))
+     (define new-vals
+       (for/hasheq : (HashTable Symbol Z3:Ast) ([x xs] [c bounds])
+         (values x (app-to-ast cur-ctx c))))
+     (mk-quant-const
+      cur-ctx
+      0
+      bounds
+      '()
+      (with-vals new-vals (expr->_z3-ast e)))]))
 
-(define dynamic-forall/s (dynamic-quant mk-forall-const))
-(define dynamic-exists/s (dynamic-quant mk-exists-const))
+(define-syntax-rule (dynamic-forall/s xs ts e) (dynamic-quant/s mk-forall-const xs ts e))
+(define-syntax-rule (dynamic-exists/s xs ts e) (dynamic-quant/s mk-exists-const xs ts e))
 
 (provide forall/s (rename-out [forall/s ∀/s])
          exists/s (rename-out [exists/s ∃/s])
