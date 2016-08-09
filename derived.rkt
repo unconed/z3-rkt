@@ -4,27 +4,11 @@
                      racket/syntax
                      syntax/parse
                      racket/pretty)
+         racket/match
          syntax/parse/define
          "parser.rkt"
          "z3-wrapper.rkt"
          "builtins.rkt")
-
-(define-syntax (define/memo stx)
-  (syntax-parse stx
-    [(_ (f:id [x:id (~literal :) tₓ]) (~literal :) t e ...)
-     #'(define f
-         (let ([m : (HashTable tₓ t) (make-hash)])
-           (λ ([x : tₓ])
-             (hash-ref! m x (λ () : t e ...)))))]
-    [(_ (f:id [x:id (~literal :) tₓ] ...) : t e ...)
-     (define ast
-       #'(define f
-           (let ([m : (HashTable (List tₓ ...) t) (make-hash)])
-             (λ ([x : tₓ] ...)
-               (hash-ref! m (list x ...) (λ () : t e ...))))))
-     ;(printf "define-fun:~n")
-     ;(pretty-print (syntax->datum ast))
-     ast]))
 
 ;; Functions that are written in terms of the base functions in main.rkt and
 ;; builtins.rkt.
@@ -41,7 +25,16 @@
     [(_ f:id ([x:id Tx] ...) T e)
      ;; FIXME: This can cause exponential blowup.
      ;; But I can't figure out how to use `macro-finder` from C API for now
-     #'(define/memo (f [x : Expr] ...) : Z3:Ast e)
+     (define n (length (syntax->list #'(x ...))))
+     #`(begin
+         (define f : Z3:Func
+           (let ([m : (HashTable (Listof Expr) Z3:Ast) (make-hash)])
+             (match-lambda*
+               [(and xs (list x ...))
+                (hash-ref! m xs (λ () e))]
+               [xs
+                (error 'f "wrong arity. Expect ~a, given ~a arguments" #,n (length xs))])))
+         (set-fun! 'f f))
      #;#'(begin
        (smt:declare-fun f (Tx ...) T)
        (smt:assert (∀/s ([x Tx] ...) (=/s (f x ...) e))))]))

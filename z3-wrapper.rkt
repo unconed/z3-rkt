@@ -66,14 +66,18 @@
     (define vals (z3ctx-vals ctx-info))
     (set-z3ctx-vals! ctx-info (hash-set vals id v)))
   (define (get-val id)
-    (hash-ref (z3ctx-vals (current-context-info)) id))
+    (define vals (z3ctx-vals (current-context-info)))
+    (hash-ref vals id (λ ()
+                        (error 'get-val "cannot find `~a` among ~a" id (hash-keys vals)))))
 
   (define (set-fun! id v)
     (define ctx-info (current-context-info))
     (define funs (z3ctx-funs ctx-info))
     (set-z3ctx-funs! ctx-info (hash-set funs id v)))
   (define (get-fun id)
-    (hash-ref (z3ctx-funs (current-context-info)) id))
+    (define funs (z3ctx-funs (current-context-info)))
+    (hash-ref funs id (λ ()
+                        (error 'get-fun "cannot find `~a` among ~a" id (hash-keys funs)))))
 
   ;; The current model for this context. This is a mutable box.
   (define (get-current-model)
@@ -255,6 +259,7 @@
   (defz3 mk-div : _z3-context _z3-ast _z3-ast -> _z3-ast)
   (defz3 mk-mod : _z3-context _z3-ast _z3-ast -> _z3-ast)
   (defz3 mk-rem : _z3-context _z3-ast _z3-ast -> _z3-ast)
+  (defz3 mk-power : _z3-context _z3-ast _z3-ast -> _z3-ast)
   (defz3 mk-is-int : _z3-context _z3-ast -> _z3-ast)
 
   ;; Comparisons
@@ -398,16 +403,17 @@
                              [head : Z3:Func-Decl]
                              [tail : Z3:Func-Decl])])
 
-  (define-type Z3:Func-Decl (Expr * → Z3:Ast)
+  (define-type Z3:Func (Expr * → Z3:Ast))
+  (define-type Z3:Func-Decl Z3:Func
     ;; TODO re-enable after TR fixes
-    #;(∩ Z3:Pre-Func-Decl (Expr * → Z3:App)))
+    #;(∩ Z3:Pre-Func-Decl Z3:Func))
 
   (define-type Expr (U Z3:Ast Z3:App Real Symbol))
 
   (require/typed/provide (submod ".." z3-ffi)
     [#:struct z3ctx ([context : Z3:Context]
                      [vals : (HashTable Symbol Z3:Ast)]
-                     [funs : (HashTable Symbol Z3:Func-Decl)]
+                     [funs : (HashTable Symbol Z3:Func)]
                      [sorts : (HashTable Symbol Z3:Sort)]
                      [current-model : (Option Z3:Model)])
      #:type-name Z3-Ctx]
@@ -417,8 +423,8 @@
     [new-sort! (Symbol Z3:Sort → Void)]
     [set-val! (Symbol Z3:Ast → Void)]
     [get-val (Symbol → Z3:Ast)]
-    [set-fun! (Symbol Z3:Func-Decl → Void)]
-    [get-fun (Symbol → Z3:Func-Decl)]
+    [set-fun! (Symbol Z3:Func → Void)]
+    [get-fun (Symbol → Z3:Func)]
     [get-current-model (→ Z3:Model)]
     [set-current-model! (Z3:Model → Void)]
     [mk-config (→ Z3:Config)]
@@ -459,6 +465,7 @@
     [mk-div (Z3:Context Z3:Ast Z3:Ast → Z3:Ast)]
     [mk-mod (Z3:Context Z3:Ast Z3:Ast → Z3:Ast)]
     [mk-rem (Z3:Context Z3:Ast Z3:Ast → Z3:Ast)]
+    [mk-power (Z3:Context Z3:Ast Z3:Ast → Z3:Ast)]
     [mk-is-int (Z3:Context Z3:Ast → Z3:Ast)]
 
     ;; Comparisons
