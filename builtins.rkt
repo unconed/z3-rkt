@@ -161,8 +161,8 @@
 ;(define-builtin-sort Array (curryn 2 z3:mk-array-sort))
 
 ;; Apply
-(: @/s : Z3:Func-Decl Expr * → Z3:Ast)
-(define (@/s f . xs) (apply mk-app (ctx) f (map expr->_z3-ast xs)))
+(: @/s : Symbol Expr * → Z3:Ast)
+(define (@/s f . xs) (apply mk-app (ctx) (get-fun f) (map expr->_z3-ast xs)))
 (provide @/s)
 
 (define-syntax hash-set*
