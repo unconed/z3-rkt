@@ -177,6 +177,9 @@
     (pattern name:id)
     (pattern (name:id field:fld ...))))
 
+(define-simple-macro (declare-datatype T:id vr:variant ...)
+  (declare-datatypes () ((T vr ...))))
+
 ;; Declare a complex datatype.
 ;; TODO: handle type parameters
 ;; TODO: handle mutually recursive types
@@ -229,12 +232,20 @@
                 (cond
                   [(null? accs)
                    (with-syntax ([mk-K (format-id K "mk-~a" (syntax->datum K))])
-                     #`(define-values (#,K #,p)
-                         (let-values ([(mk-K #,p _) (query-constructor cur-ctx #,con-K 0)])
-                           (values (mk-K) #,p))))]
+                     #`(begin
+                         (define-values (#,K #,p)
+                           (let-values ([(mk-K #,p _) (query-constructor cur-ctx #,con-K 0)])
+                             (values (mk-K) #,p)))
+                         (set-val! '#,K #,K)
+                         (set-fun! '#,p (cast #,p Z3:Func-Decl))))]
                   [else
-                   #`(match-define-values (#,K #,p (list #,@accs))
-                                          (query-constructor cur-ctx #,con-K #,(length accs)))]))))
+                   #`(begin
+                       (match-define-values (#,K #,p (list #,@accs))
+                                            (query-constructor cur-ctx #,con-K #,(length accs)))
+                       (set-fun! '#,K #,K)
+                       (set-fun! '#,p (cast #,p Z3:Func-Decl))
+                       #,@(for/list ([acc accs])
+                            #`(set-fun! '#,acc (cast #,acc Z3:Func-Decl))))]))))
      ;(printf "declare-datatypes:~n")
      ;(pretty-print (syntax->datum gen))
      gen]))
@@ -272,7 +283,8 @@
   smt:
   (combine-out
    with-context
-   declare-datatypes dynamic-declare-datatype
+   declare-datatypes
+   declare-datatype dynamic-declare-datatype
    declare-sort dynamic-declare-sort
    declare-const dynamic-declare-const
    declare-fun dynamic-declare-fun
