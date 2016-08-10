@@ -188,12 +188,14 @@
          (let ([x (mk-fresh-const cur-ctx
                                   (symbol->string 'x)
                                   (assert (smt:internal:sort-expr->_z3-sort 't) z3-sort?))] ...)
-           (mk-quant cur-ctx 0 (list x ...) '() (expr->_z3-ast e))))]))
+           (define new-vals
+             (for/hasheq : (HashTable Symbol Z3:Ast) ([xᵢ (in-list '(x ...))]
+                                                      [cᵢ (in-list (list x ...))])
+               (values xᵢ (app-to-ast cur-ctx cᵢ))))
+           (mk-quant cur-ctx 0 (list x ...) '() (expr->_z3-ast (with-vals new-vals e)))))]))
 
-(define-simple-macro (forall/s ([x:id t] ...) e)
-  (quant/s mk-forall-const ([x t] ...) e))
-(define-simple-macro (exists/s ([x:id t] ...) e)
-  (quant/s mk-exists-const ([x t] ...) e))
+(define-simple-macro (forall/s ([x:id t] ...) e) (quant/s mk-forall-const ([x t] ...) e))
+(define-simple-macro (exists/s ([x:id t] ...) e) (quant/s mk-exists-const ([x t] ...) e))
 
 (define-syntax-rule (dynamic-quant/s mk-quant-const xs* ts e)
   (match xs*
@@ -213,7 +215,7 @@
       0
       bounds
       '()
-      (with-vals new-vals (expr->_z3-ast e)))]))
+      (expr->_z3-ast (with-vals new-vals e)))]))
 
 (define-syntax-rule (dynamic-forall/s xs ts e) (dynamic-quant/s mk-forall-const xs ts e))
 (define-syntax-rule (dynamic-exists/s xs ts e) (dynamic-quant/s mk-exists-const xs ts e))
