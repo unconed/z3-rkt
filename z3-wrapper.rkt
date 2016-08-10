@@ -100,9 +100,7 @@
   ;; that disallows extracting cpointer fields
   (struct z3-boxed-pointer (ctx ptr) #:transparent)
   
-  (struct z3-func-decl-pointer z3-boxed-pointer ()
-    #:property prop:procedure (λ (f . args) (apply mk-app (ctx) f (map expr->_z3-ast args)))
-    #:transparent)
+  (struct z3-func-decl-pointer z3-boxed-pointer () #:transparent)
   
   (define-syntax (define-z3-type stx)
     (syntax-parse stx
@@ -178,7 +176,7 @@
   (define-z3-type _z3-ast)
   (define-z3-type _z3-sort z3-ast-tag)
   (define-z3-type _z3-app z3-ast-tag)
-  (define-z3-type _z3-func-decl z3-ast-tag z3-func-decl-pointer)
+  (define-z3-type _z3-func-decl z3-ast-tag)
   (define-z3-type _z3-constructor)
   (define-z3-type _z3-pattern)
   (define-z3-type _z3-model)
@@ -386,7 +384,7 @@
   (require/typed/provide (submod ".." z3-ffi)
     [#:opaque Z3:Config  z3-config?]
     [#:opaque Z3:Context z3-context?]
-    ;[#:opaque Z3:Pre-Func-Decl z3-func-decl?] ; TODO re-enable after TR fixes
+    [#:opaque Z3:Func-Decl   z3-func-decl?]
     [#:opaque Z3:Symbol      z3-symbol?]
     [#:opaque Z3:Ast         z3-ast?]
     [#:opaque Z3:Sort        z3-sort?]
@@ -404,9 +402,6 @@
                              [tail : Z3:Func-Decl])])
 
   (define-type Z3:Func (Expr * → Z3:Ast))
-  (define-type Z3:Func-Decl Z3:Func
-    ;; TODO re-enable after TR fixes
-    #;(∩ Z3:Pre-Func-Decl Z3:Func))
 
   (define-type Expr (U Z3:Ast Z3:App Real Symbol))
 
@@ -492,9 +487,7 @@
 
     [query-constructor
      (Z3:Context Z3:Constructor Nonnegative-Fixnum →
-                 (Values Z3:Func-Decl
-                         (Expr → Z3:Ast) ;Z3:Func-Decl
-                         (Listof (Expr → Z3:Ast) #;Z3:Func-Decl)))]
+                 (Values Z3:Func-Decl Z3:Func-Decl (Listof Z3:Func-Decl)))]
 
     [mk-datatype (Z3:Context Z3:Symbol (Listof Z3:Constructor) → Z3:Sort)]
 
@@ -536,7 +529,17 @@
                          [#f "false"]
                          [(? integer?) (number->string kw-arg)]
                          [(? string?) kw-arg]))
-    (values kw-str kw-arg-str)))
+    (values kw-str kw-arg-str))
+
+  (: mk-func : Z3:Func-Decl Symbol Natural → Z3:Func)
+  ;; Make a 1st order Z3 function out of func-decl
+  (define (mk-func f-decl name n)
+    (λ xs
+      (define num-xs (length xs))
+      (cond [(= n num-xs)
+             (apply mk-app (ctx) f-decl (map expr->_z3-ast xs))]
+            [else
+             (error name "expect ~a arguments, given ~a" n num-xs)]))))
 
 (require 'z3-ffi-typed)
 (provide (all-from-out 'z3-ffi-typed))

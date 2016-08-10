@@ -61,8 +61,8 @@
 
 (: make-uninterpreted
    (case-> [String Null Any → Z3:Ast]
-           [String (Pairof Any (Listof Any)) Any → Z3:Func-Decl]
-           [String (Listof Any) Any → (U Z3:Ast Z3:Func-Decl)]))
+           [String (Pairof Any (Listof Any)) Any → Z3:Func]
+           [String (Listof Any) Any → (U Z3:Ast Z3:Func)]))
 ;; Make an uninterpreted function given arg sorts and return sort.
 (define (make-uninterpreted name argsorts retsort)
   (define cur-ctx (ctx))
@@ -71,12 +71,14 @@
   (cond [(null? argsorts)
          (app-to-ast cur-ctx (mk-fresh-const cur-ctx name ret))]
         [else
-         (mk-fresh-func-decl cur-ctx name args ret)]))
+         (mk-func (mk-fresh-func-decl cur-ctx name args ret)
+                      (string->symbol name)
+                      (length argsorts))]))
 
 (: dynamic-declare-fun
    (case-> [Symbol Null Any → Z3:Ast]
-           [Symbol (Pairof Any (Listof Any)) Any → Z3:Func-Decl]
-           [Symbol (Listof Any) Any → (U Z3:Ast Z3:Func-Decl)]))
+           [Symbol (Pairof Any (Listof Any)) Any → Z3:Func]
+           [Symbol (Listof Any) Any → (U Z3:Ast Z3:Func)]))
 ;; Declare a new function. Each `D` is a sort-expr.
 (define (dynamic-declare-fun f-id doms rng)
   (cond
@@ -100,11 +102,11 @@
   (make-uninterpreted "" 'args ...))
 
 (define-syntax-rule (make-fun/vector n args ...)
-  (for/vector : (Vectorof (U Z3:App Z3:Func-Decl)) ([i (in-range 0 n)])
+  (for/vector : (Vectorof (U Z3:App Z3:Func)) ([i (in-range 0 n)])
     (make-uninterpreted "" 'args ...)))
 
 (define-syntax-rule (make-fun/list n args ...)
-  (for/list : (Listof (U Z3:App Z3:Func-Decl)) ([i (in-range 0 n)])
+  (for/list : (Listof (U Z3:App Z3:Func)) ([i (in-range 0 n)])
     (make-uninterpreted "" 'args ...)))
 
 (: constr->_z3-constructor : Symbol (Listof (List Symbol Symbol)) → Z3:Constructor)
@@ -125,9 +127,7 @@
    Symbol
    (Listof (U Symbol (Pairof Symbol (Listof (List Symbol Symbol)))))
    → (Values Z3:Sort
-             (Listof (List (U Z3:Ast Z3:Func-Decl)
-                           (Z3:Ast → Z3:Ast)
-                           (Listof (Z3:Ast → Z3:Ast))))))
+             (Listof (List (U Z3:Ast Z3:Func) Z3:Func (Listof Z3:Func)))))
 ;; TODO: type parameters
 (define (dynamic-declare-datatype T-id vrs)
   (define cur-ctx (ctx))
@@ -145,24 +145,30 @@
   
   ;; define constructor/tester/accessors for each variant
   (define variants
-    (for/list : (Listof (List (U Z3:Ast Z3:Func-Decl)
-                              (Z3:Ast → Z3:Ast)
-                              (Listof (Z3:Ast → Z3:Ast))))
+    (for/list : (Listof (List (U Z3:Ast Z3:Func) Z3:Func (Listof Z3:Func)))
               ([constr constructors] [vr vrs])
       (define-values (K-name field-names)
         (match vr
           [(cons k flds) (values k (map (inst car Symbol Any) flds))]
           [(? symbol? k) (values k '())]))
-      (define-values (pre-K p acs) (query-constructor cur-ctx constr (length field-names)))
-      (define K (if (null? field-names) (pre-K) pre-K))
-      
+      (define p-name (format-symbol "is-~a" K-name))
+      (define-values (pre-K-decl p acs)
+        (let-values ([(pre-K-decl p-decl ac-decls)
+                      (query-constructor cur-ctx constr (length field-names))])
+          (values pre-K-decl
+                  (mk-func p-decl p-name 1)
+                  (for/list : (Listof Z3:Func) ([ac-decl ac-decls] [field-name field-names])
+                    (mk-func ac-decl field-name 1)))))
+      (define K
+        (if (null? field-names)
+            (mk-app cur-ctx pre-K-decl)
+            (mk-func pre-K-decl K-name (length field-names))))
       (if (z3-ast? K)
           (set-val! K-name K)
           (set-fun! K-name K))
-      (set-fun! (format-symbol "is-~a" K-name) (cast p Z3:Func-Decl))
+      (set-fun! p-name p)
       (for ([field-name field-names] [ac acs])
-        (set-fun! field-name (cast ac Z3:Func-Decl)))
-
+        (set-fun! field-name ac))
       (list K p acs)))
   
   (values T variants))
@@ -235,17 +241,23 @@
                      #`(begin
                          (define-values (#,K #,p)
                            (let-values ([(mk-K #,p _) (query-constructor cur-ctx #,con-K 0)])
-                             (values (mk-K) #,p)))
+                             (values (mk-app cur-ctx mk-K) (mk-func #,p '#,p 1))))
                          (set-val! '#,K #,K)
-                         (set-fun! '#,p (cast #,p Z3:Func-Decl))))]
+                         (set-fun! '#,p #,p)))]
                   [else
+                   (define n (length accs))
                    #`(begin
-                       (match-define-values (#,K #,p (list #,@accs))
-                                            (query-constructor cur-ctx #,con-K #,(length accs)))
+                       (match-define-values (#,K #,p #,@accs)
+                          (match-let-values ([(#,K #,p (list #,@accs))
+                                              (query-constructor cur-ctx #,con-K #,(length accs))])
+                            (values (mk-func #,K '#,K #,n)
+                                    (mk-func #,p '#,p 1)
+                                    #,@(for/list ([acc accs])
+                                         #`(mk-func #,acc '#,acc 1)))))
                        (set-fun! '#,K #,K)
-                       (set-fun! '#,p (cast #,p Z3:Func-Decl))
+                       (set-fun! '#,p #,p)
                        #,@(for/list ([acc accs])
-                            #`(set-fun! '#,acc (cast #,acc Z3:Func-Decl))))]))))
+                            #`(set-fun! '#,acc #,acc)))]))))
      ;(printf "declare-datatypes:~n")
      ;(pretty-print (syntax->datum gen))
      gen]))

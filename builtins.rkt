@@ -92,7 +92,7 @@
 
 ;; Initialize builtins.
 (: init-builtins : → (Values (HashTable Symbol Z3:Ast)
-                             (HashTable Symbol Z3:Func-Decl)
+                             (HashTable Symbol Z3:Func)
                              (HashTable Symbol Z3:Sort)))
 (define (init-builtins)
   (define cur-ctx (ctx))
