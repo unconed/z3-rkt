@@ -60,11 +60,19 @@
                                       (λ (i) (format-id #f "x~a" i))))])
             #'(begin
                 (define (f/s [x : Expr] ...)
+                  #;(printf "Applying ~a to ~a~n"
+                          'f/s
+                          (list (ast-to-string (ctx) (expr->_z3-ast x)) ...))
                   (v (ctx) (expr->_z3-ast x) ...))
                 (provide f/s)))]
          [(~literal *)
           #'(begin
               (define (f/s . [xs : Expr *])
+                (define args (map expr->_z3-ast xs))
+                #;(printf "Applying ~a to ~a~n"
+                          'f/s
+                          (for/list : (Listof String) ([arg args])
+                            (ast-to-string (ctx) arg)))
                 (apply v (ctx) (map expr->_z3-ast xs)))
               (provide f/s))]
          [(~literal lassoc)
@@ -72,6 +80,11 @@
               (define f/s
                 (lassoc
                  (λ ([x : Expr] [y : Expr])
+                   ;; TODO just debugging
+                   #;(printf "Applying ~a to ~a, ~a~n"
+                           'f/s
+                           (ast-to-string (ctx) (expr->_z3-ast x))
+                           (ast-to-string (ctx) (expr->_z3-ast y)))
                    (v (ctx) (expr->_z3-ast x) (expr->_z3-ast y)))))
               (provide f/s))]
          [(~literal rassoc)
@@ -79,6 +92,11 @@
               (define f/s
                 (rassoc
                  (λ ([x : Expr] [y : Expr])
+                   ;; TODO just debugging
+                   #;(printf "Applying ~a to ~a, ~a~n"
+                           'f/s
+                           (ast-to-string (ctx) (expr->_z3-ast x))
+                           (ast-to-string (ctx) (expr->_z3-ast y)))
                    (v (ctx) (expr->_z3-ast x) (expr->_z3-ast y)))))
               (provide f/s))]))]))
 
@@ -163,7 +181,7 @@
 
 ;; Apply
 (: @/s : Symbol Expr * → Z3:Ast)
-(define (@/s f . xs) (apply (get-fun f) (map expr->_z3-ast xs)))
+(define (@/s f . xs) (apply (get-fun f) xs))
 (provide @/s)
 
 (define-syntax hash-set*

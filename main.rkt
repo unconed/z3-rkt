@@ -23,7 +23,9 @@
      . ->* . Z3-Ctx))]
   [raise-arity-error (Symbol Natural Any * → Nothing)])
 
-(define z3-default-overrides : (HashTable Keyword (U Boolean Integer String)) (hasheq))
+(define z3-default-overrides : (HashTable Keyword (U Boolean Integer String))
+  (hasheq ;'#:timeout 2000
+          '#:well-sorted-check? #t))
 
 (: new-context-proc : (Listof Keyword) (Listof (U Boolean Integer String)) → Z3-Ctx)
 (define (new-context-proc kws kw-args)

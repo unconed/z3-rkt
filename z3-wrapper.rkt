@@ -354,6 +354,12 @@
   (defz3 get-error-code : _z3-context -> _z3-error-code)
   (defz3 get-error-msg : _z3-error-code -> _string)
 
+  ;; TODO tmp hacks
+  (begin
+    (define z3-get-sort
+      (get-ffi-obj "Z3_get_sort" libz3 (_fun _z3-context _z3-ast -> _z3-sort)))
+    (provide z3-get-sort))
+
   (defz3 assert-cnstr : _z3-context _z3-ast -> _void)
   (defz3 check : _z3-context -> _z3-sat-lbool)
   (defz3 check-and-get-model : _z3-context (model : (_ptr o (_or-null _z3-model))) -> (rv : _z3-sat-lbool) -> (values rv model))
@@ -508,6 +514,9 @@
     [get-error-code (Z3:Context → Z3:Error-Code)]
     [get-error-msg (Z3:Error-Code → String)]
 
+    ;; FIXME tmp hacks
+    [z3-get-sort (Z3:Context Z3:Ast → Z3:Sort)]
+
     [assert-cnstr (Z3:Context Z3:Ast → Void)]
     [check (Z3:Context → Z3:Sat-LBool)]
     [check-and-get-model (Z3:Context → (Values Z3:Sat-LBool (Option Z3:Model)))]
@@ -537,7 +546,15 @@
     (λ xs
       (define num-xs (length xs))
       (cond [(= n num-xs)
-             (apply mk-app (ctx) f-decl (map expr->_z3-ast xs))]
+             (define cur-ctx (ctx))
+             (define args (map expr->_z3-ast xs))
+             #;(printf "applying ~a to ~a~n"
+                     (func-decl-to-string cur-ctx f-decl)
+                     (for/list : (Listof Sexp) ([arg args])
+                       (define arg-str (ast-to-string cur-ctx arg))
+                       (define sort (sort-to-string cur-ctx (z3-get-sort cur-ctx arg)))
+                       `(,arg-str : ,sort)))
+             (apply mk-app cur-ctx f-decl args)]
             [else
              (error name "expect ~a arguments, given ~a" n num-xs)]))))
 
