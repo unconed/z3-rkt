@@ -26,12 +26,6 @@
     (identifier? . -> . identifier?)
     (format-id id "~a/s" (syntax->datum id)))
   
-  (define/contract (with-syntax-define-proc f v n)
-    (identifier? syntax? exact-nonnegative-integer? . -> . syntax?)
-    (with-syntax ([f/s (add-smt-suffix f)])
-      #`(begin
-          (define (f/s . args) (apply #,v (ctx) (map expr->_z3-ast args)))
-          (provide f/s))))
   (define-syntax-class arity
     #:description "function arity (natural or *)"
     (pattern (~or n:nat (~literal *) (~literal lassoc) (~literal rassoc)))))
@@ -62,7 +56,8 @@
                 (define (f/s [x : Expr] ...)
                   #;(printf "Applying ~a to ~a~n"
                           'f/s
-                          (list (ast-to-string (ctx) (expr->_z3-ast x)) ...))
+                          (list `(,(ast-to-string (ctx) (expr->_z3-ast x)) :
+                                  ,(sort-to-string (ctx) (z3-get-sort (ctx) (expr->_z3-ast x)))) ...))
                   (v (ctx) (expr->_z3-ast x) ...))
                 (provide f/s)))]
          [(~literal *)
@@ -201,7 +196,7 @@
 (define-syntax (quant/s stx)
   (syntax-parse stx
     [(_ _ () e) #'e]
-    [(_ mk-quant:id ([x:id t] ...) e)
+    [(_ mk-quant:id ([x:id t] ...) e #:patterns pats)
      #'(let ([cur-ctx (ctx)])
          (let ([x (mk-fresh-const cur-ctx
                                   (symbol->string 'x)
@@ -210,12 +205,19 @@
              (for/hasheq : (HashTable Symbol Z3:Ast) ([xᵢ (in-list '(x ...))]
                                                       [cᵢ (in-list (list x ...))])
                (values xᵢ (app-to-ast cur-ctx cᵢ))))
-           (mk-quant cur-ctx 0 (list x ...) '() (expr->_z3-ast (with-vals new-vals e)))))]))
+           (define-values (body patterns)
+             (with-vals new-vals
+               (values (expr->_z3-ast e) pats)))
+           (mk-quant cur-ctx 0 (list x ...) patterns body)))]))
 
-(define-simple-macro (forall/s ([x:id t] ...) e) (quant/s mk-forall-const ([x t] ...) e))
-(define-simple-macro (exists/s ([x:id t] ...) e) (quant/s mk-exists-const ([x t] ...) e))
+(define-simple-macro
+  (forall/s ([x:id t] ...) e (~optional (~seq #:patterns pats) #:defaults ([pats #'null])))
+  (quant/s mk-forall-const ([x t] ...) e #:patterns pats))
+(define-simple-macro
+  (exists/s ([x:id t] ...) e (~optional (~seq #:patterns pats) #:defaults ([pats #'null])))
+  (quant/s mk-exists-const ([x t] ...) e #:patterns pats))
 
-(define-syntax-rule (dynamic-quant/s mk-quant-const xs* ts e)
+(define-simple-macro (dynamic-quant/s mk-quant-const xs* ts e #:patterns pats)
   (match xs*
     ['() e]
     [xs
@@ -228,15 +230,17 @@
      (define new-vals
        (for/hasheq : (HashTable Symbol Z3:Ast) ([x xs] [c bounds])
          (values x (app-to-ast cur-ctx c))))
-     (mk-quant-const
-      cur-ctx
-      0
-      bounds
-      '()
-      (expr->_z3-ast (with-vals new-vals e)))]))
+     (define-values (body patterns)
+       (with-vals new-vals
+         (values (expr->_z3-ast e) pats)))
+     (mk-quant-const cur-ctx 0 bounds patterns body)]))
 
-(define-syntax-rule (dynamic-forall/s xs ts e) (dynamic-quant/s mk-forall-const xs ts e))
-(define-syntax-rule (dynamic-exists/s xs ts e) (dynamic-quant/s mk-exists-const xs ts e))
+(define-simple-macro
+  (dynamic-forall/s xs ts e (~optional (~seq #:patterns pats) #:defaults ([pats #'null])))
+  (dynamic-quant/s mk-forall-const xs ts e #:patterns pats))
+(define-simple-macro
+  (dynamic-exists/s xs ts e (~optional (~seq #:patterns pats) #:defaults ([pats #'null])))
+  (dynamic-quant/s mk-exists-const xs ts e #:patterns pats))
 
 (provide forall/s (rename-out [forall/s ∀/s])
          exists/s (rename-out [exists/s ∃/s])

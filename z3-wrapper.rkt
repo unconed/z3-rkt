@@ -241,6 +241,8 @@
 
   (define-nary mk-distinct : _z3-ast -> _z3-ast)
 
+  (define-nary mk-pattern : _z3-ast -> _z3-pattern)
+
   ;; Boolean operations
   (defz3 mk-not : _z3-context _z3-ast -> _z3-ast)
   (defz3 mk-ite : _z3-context _z3-ast _z3-ast _z3-ast -> _z3-ast)
@@ -447,8 +449,9 @@
     [mk-true (Z3:Context → Z3:Ast)]
     [mk-false (Z3:Context → Z3:Ast)]
     [mk-eq (Z3:Context Z3:Ast Z3:Ast → Z3:Ast)]
-
     [mk-distinct (Z3:Context Z3:Ast * → Z3:Ast)]
+    [mk-pattern (Z3:Context Z3:Ast Z3:Ast * → Z3:Pattern)]
+    
 
     ;; Boolean operations
     [mk-not (Z3:Context Z3:Ast → Z3:Ast)]
