@@ -396,6 +396,26 @@
                                 'no-parser 'invalid-pattern 'memout-fail
                                 'file-access-error 'invalid-usage
                                 'internal-fatal 'dec-ref-error))
+  (define-type Global-Param
+    (U "auto_config"
+       "debug_ref_count"
+       "dump_models"
+       "memory_high_watermark"
+       "memory_max_alloc_count"
+       "memory_max_size"
+       "model"
+       "model_validate"
+       "proof"
+       "rlimit"
+       "smtlib2_compliant"
+       "timeout"
+       "trace"
+       "trace_file_name"
+       "type_check"
+       "unsat_core"
+       "verbose"
+       "warning"
+       "well_sorted_check"))
 
   (require/typed/provide (submod ".." z3-ffi)
     [#:opaque Z3:Config  z3-config?]
@@ -439,8 +459,8 @@
     [get-current-model (→ Z3:Model)]
     [set-current-model! (Z3:Model → Void)]
 
-    [global-param-set! (String String → Void)]
-    [global-param-get (String → (Option String))]
+    [global-param-set! (Global-Param String → Void)]
+    [global-param-get (Global-Param → String)]
     [mk-config (→ Z3:Config)]
     [set-param-value! (Z3:Config String String → Void)]
     [mk-context (Z3:Config → Z3:Context)]
