@@ -204,7 +204,7 @@
   (defz3 del-context : _z3-context -> _void)
   (defz3 del-model   : _z3-context _z3-model -> _void)
 
-  (defz3 global-param-set : _string _string -> _void)
+  (defz3 global-param-set! : _string _string -> _void)
   (defz3 global-param-get : _string
     (val : (_ptr o _string))
     -> (ok? : _bool)
@@ -214,6 +214,8 @@
   (defz3 set-param-value! : _z3-config _string _string -> _void)
 
   (defz3 mk-context #:wrapper (allocator del-context) : _z3-config -> _z3-context)
+  ;(defz3 update-param-value! : _z3-context _string _string -> _void) ; get Z3 Exception when used
+  (defz3 interrupt : _z3-context -> _void)
 
   (defz3 set-logic : _z3-context _string -> _bool)
 
@@ -437,11 +439,13 @@
     [get-current-model (→ Z3:Model)]
     [set-current-model! (Z3:Model → Void)]
 
-    [global-param-set (String String → Void)]
+    [global-param-set! (String String → Void)]
     [global-param-get (String → (Option String))]
     [mk-config (→ Z3:Config)]
     [set-param-value! (Z3:Config String String → Void)]
     [mk-context (Z3:Config → Z3:Context)]
+    ;[update-param-value! (Z3:Context String String → Void)]
+    [interrupt (Z3:Context → Void)]
     [set-logic (Z3:Context String → Boolean)]
 
     [-z3-null (→ Z3:Null)]
