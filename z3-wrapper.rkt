@@ -204,6 +204,12 @@
   (defz3 del-context : _z3-context -> _void)
   (defz3 del-model   : _z3-context _z3-model -> _void)
 
+  (defz3 global-param-set : _string _string -> _void)
+  (defz3 global-param-get : _string
+    (val : (_ptr o _string))
+    -> (ok? : _bool)
+    -> (and ok? val))
+
   (defz3 mk-config #:wrapper (allocator del-config) : -> _z3-config)
   (defz3 set-param-value! : _z3-config _string _string -> _void)
 
@@ -430,6 +436,9 @@
     [get-fun (Symbol → Z3:Func)]
     [get-current-model (→ Z3:Model)]
     [set-current-model! (Z3:Model → Void)]
+
+    [global-param-set (String String → Void)]
+    [global-param-get (String → (Option String))]
     [mk-config (→ Z3:Config)]
     [set-param-value! (Z3:Config String String → Void)]
     [mk-context (Z3:Config → Z3:Context)]
