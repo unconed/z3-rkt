@@ -172,6 +172,7 @@
   ;;;;; Low-level bindings
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+  (define-z3-type _z3-solver)
   (define-z3-type _z3-symbol)
   (define-z3-type _z3-ast)
   (define-z3-type _z3-sort z3-ast-tag)
@@ -215,6 +216,29 @@
   (defz3 mk-context #:wrapper (allocator del-context) : _z3-config -> _z3-context)
   ;(defz3 update-param-value! : _z3-context _string _string -> _void) ; get Z3 Exception when used
   (defz3 interrupt : _z3-context -> _void)
+
+  ;; Solver API
+  (defz3 mk-solver : _z3-context -> _z3-solver)
+  (defz3 mk-simple-solver : _z3-context -> _z3-solver)
+  (defz3 mk-solver-for-logic : _z3-context _z3-symbol -> _z3-solver)
+  ; TODO: mk-solver-from-tactic
+  (defz3 solver-get-help : _z3-context _z3-solver -> _string)
+  ; TODO: solver-get-param-descrs
+  ; TODO: solver-set-params
+  (defz3 solver-inc-ref! : _z3-context _z3-solver -> _void)
+  (defz3 solver-dec-ref! : _z3-context _z3-solver -> _void)
+  ; TODO: solver-push, solver-pop
+  (defz3 solver-reset! : _z3-context _z3-solver -> _void)
+  ; TODO: solver-get-num-scopes
+  (defz3 solver-assert! : _z3-context _z3-solver _z3-ast -> _void)
+  (defz3 solver-assert-and-track! : _z3-context _z3-solver _z3-ast _z3-ast -> _void)
+  ; TODO: solver-get-assertions
+  (defz3 solver-check : _z3-context _z3-solver -> _z3-lbool)
+  ; TODO: solver-check-assumptions
+  ; TODO: solver-get-model, solver-get-proof, solver-get-unsat-core
+  (defz3 solver-get-reason-unknown : _z3-context _z3-solver -> _string)
+  ; TODO: solver-get-statistics
+  (defz3 solver-to-string : _z3-context _z3-solver -> _string)
 
   (defz3 mk-string-symbol : _z3-context _string -> _z3-symbol)
   (defz3 mk-uninterpreted-sort : _z3-context _z3-symbol -> _z3-sort)
@@ -412,6 +436,7 @@
   (require/typed/provide (submod ".." z3-ffi)
     [#:opaque Z3:Config  z3-config?]
     [#:opaque Z3:Context z3-context?]
+    [#:opaque Z3:Solver      z3-solver?]
     [#:opaque Z3:Func-Decl   z3-func-decl?]
     [#:opaque Z3:Symbol      z3-symbol?]
     [#:opaque Z3:Ast         z3-ast?]
@@ -458,9 +483,20 @@
     [mk-context (Z3:Config → Z3:Context)]
     ;[update-param-value! (Z3:Context String String → Void)]
     [interrupt (Z3:Context → Void)]
-
     [-z3-null (→ Z3:Null)]
-    [expr->_z3-ast (Expr → Z3:Ast)]
+
+    [mk-solver (Z3:Context → Z3:Solver)]
+    [mk-simple-solver (Z3:Context → Z3:Solver)]
+    [mk-solver-for-logic (Z3:Context Z3:Symbol → Z3:Solver)]
+    [solver-get-help (Z3:Context Z3:Solver → String)]
+    [solver-inc-ref! (Z3:Context Z3:Solver → Void)]
+    [solver-dec-ref! (Z3:Context Z3:Solver → Void)]
+    [solver-reset! (Z3:Context Z3:Solver → Void)]
+    [solver-assert! (Z3:Context Z3:Solver Z3:Ast → Void)]
+    [solver-assert-and-track! (Z3:Context Z3:Solver Z3:Ast Z3:Ast → Void)]
+    [solver-check (Z3:Context Z3:Solver -> Z3:LBool)]
+    [solver-get-reason-unknown (Z3:Context Z3:Solver -> String)]
+    [solver-to-string (Z3:Context Z3:Solver -> String)]
     
     [mk-string-symbol (Z3:Context String → Z3:Symbol)]
     [mk-uninterpreted-sort (Z3:Context Z3:Symbol → Z3:Sort)]
@@ -549,6 +585,8 @@
     [get-app-num-args (Z3:Context Z3:App → Nonnegative-Fixnum)]
     [app-to-ast (Z3:Context Z3:App → Z3:Ast)]
     [get-app-decl (Z3:Context Z3:App → Z3:Func-Decl)]
+
+    [expr->_z3-ast (Expr → Z3:Ast)]
     )
 
   (: keyword-arg->_z3-param :
@@ -578,7 +616,8 @@
                        `(,arg-str : ,sort)))
              (apply mk-app cur-ctx f-decl args)]
             [else
-             (error name "expect ~a arguments, given ~a" n num-xs)]))))
+             (error name "expect ~a arguments, given ~a" n num-xs)])))
+  )
 
 (require 'z3-ffi-typed)
 (provide (all-from-out 'z3-ffi-typed))
