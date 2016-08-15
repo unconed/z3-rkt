@@ -202,7 +202,6 @@
   ;; Deallocators
   (defz3 del-config  : _z3-config  -> _void)
   (defz3 del-context : _z3-context -> _void)
-  (defz3 del-model   : _z3-context _z3-model -> _void)
 
   (defz3 global-param-set! : _string _string -> _void)
   (defz3 global-param-get : _string
@@ -216,8 +215,6 @@
   (defz3 mk-context #:wrapper (allocator del-context) : _z3-config -> _z3-context)
   ;(defz3 update-param-value! : _z3-context _string _string -> _void) ; get Z3 Exception when used
   (defz3 interrupt : _z3-context -> _void)
-
-  (defz3 set-logic : _z3-context _string -> _bool)
 
   (defz3 mk-string-symbol : _z3-context _string -> _z3-symbol)
   (defz3 mk-uninterpreted-sort : _z3-context _z3-symbol -> _z3-sort)
@@ -354,7 +351,6 @@
     -> _z3-ast)
 
   ;; -> string functions
-  (defz3 context-to-string : _z3-context -> _string)
   (defz3 ast-to-string : _z3-context _z3-ast -> _string)
   (defz3 model-to-string : _z3-context _z3-model -> _string)
   (defz3 sort-to-string : _z3-context _z3-sort -> _string)
@@ -370,10 +366,6 @@
       (get-ffi-obj "Z3_get_sort" libz3 (_fun _z3-context _z3-ast -> _z3-sort)))
     (provide z3-get-sort))
 
-  (defz3 assert-cnstr : _z3-context _z3-ast -> _void)
-  (defz3 check : _z3-context -> _z3-sat-lbool)
-  (defz3 check-and-get-model : _z3-context (model : (_ptr o (_or-null _z3-model))) -> (rv : _z3-sat-lbool) -> (values rv model))
-  (defz3 eval : _z3-context _z3-model _z3-ast (v : (_ptr o (_or-null _z3-ast))) -> (rv : _bool) -> (values rv v))
   (defz3 get-ast-kind : _z3-context _z3-ast -> _z3-ast-kind)
   (defz3 get-numeral-string : _z3-context _z3-ast -> _string)
   (defz3 to-app : _z3-context _z3-ast -> _z3-app)
@@ -466,7 +458,6 @@
     [mk-context (Z3:Config → Z3:Context)]
     ;[update-param-value! (Z3:Context String String → Void)]
     [interrupt (Z3:Context → Void)]
-    [set-logic (Z3:Context String → Boolean)]
 
     [-z3-null (→ Z3:Null)]
     [expr->_z3-ast (Expr → Z3:Ast)]
@@ -540,7 +531,6 @@
      (Z3:Context Nonnegative-Fixnum (Listof Z3:App) (Listof Z3:Pattern) Z3:Ast → Z3:Ast)]
 
     ;; → string functions
-    [context-to-string (Z3:Context → String)]
     [ast-to-string (Z3:Context Z3:Ast → String)]
     [model-to-string (Z3:Context Z3:Model → String)]
     [sort-to-string (Z3:Context Z3:Sort → String)]
@@ -553,10 +543,6 @@
     ;; FIXME tmp hacks
     [z3-get-sort (Z3:Context Z3:Ast → Z3:Sort)]
 
-    [assert-cnstr (Z3:Context Z3:Ast → Void)]
-    [check (Z3:Context → Z3:Sat-LBool)]
-    [check-and-get-model (Z3:Context → (Values Z3:Sat-LBool (Option Z3:Model)))]
-    [eval (Z3:Context Z3:Model Z3:Ast → (Values Boolean (Option Z3:Ast)))]
     [get-ast-kind (Z3:Context Z3:Ast → Z3:Ast-Kind)]
     [get-numeral-string (Z3:Context Z3:Ast → String)]
     [to-app (Z3:Context Z3:Ast → Z3:App)]
