@@ -15,6 +15,8 @@
       #:trace? Boolean
       #:trace-file-name String
       #:timeout Nonnegative-Fixnum
+      #:rlimit Nonnegative-Fixnum
+      #:type-check? Boolean
       #:well-sorted-check? Boolean
       #:auto-config? Boolean
       #:model? Boolean
@@ -24,7 +26,7 @@
   [raise-arity-error (Symbol Natural Any * → Nothing)])
 
 (define z3-default-overrides : (HashTable Keyword (U Boolean Integer String))
-  (hasheq '#:timeout 1000
+  (hasheq '#:timeout 2000
           '#:well-sorted-check? #t))
 
 (: new-context-proc : (Listof Keyword) (Listof (U Boolean Integer String)) → Z3-Ctx)
@@ -34,19 +36,17 @@
     (for/fold ([params : (HashTable Keyword (U Boolean Integer String)) z3-default-overrides])
               ([kw kws] [kw-arg kw-args])
       (hash-set params kw kw-arg)))
-  (for ([(kw kw-arg) (in-hash params)] #:unless (eq? kw '#:logic))
+  (for ([(kw kw-arg) (in-hash params)])
     (define-values (kw-str kw-arg-str) (keyword-arg->_z3-param kw kw-arg))
     (set-param-value! config kw-str kw-arg-str))
 
   (define ctx (mk-context config))
-  (define logic (hash-ref params '#:logic #f))
-  (when logic
-    (set-logic ctx (assert logic string?)))
+  (define solver (mk-solver ctx))
   (define-values (vals funs sorts)
-    (let ([bootstrap-z3ctx (z3ctx ctx (hasheq) (hasheq) (hasheq) #f)]) ;; TODO hacky
+    (let ([bootstrap-z3ctx (z3ctx ctx solver (hasheq) (hasheq) (hasheq))]) ;; TODO hacky
       (smt:with-context bootstrap-z3ctx
         (init-builtins))))
-  (z3ctx ctx vals funs sorts #f))
+  (z3ctx ctx solver vals funs sorts))
 
 ; For a list of keyword arguments smt:new-context accepts, see
 ; http://research.microsoft.com/en-us/um/redmond/projects/z3/config.html.
