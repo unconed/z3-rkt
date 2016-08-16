@@ -184,12 +184,12 @@
     [(_ m [x y] rst ...) (hash-set* (hash-set m x y) rst ...)]))
 
 (define-syntax-rule (with-vals x->v e ...)
-  (match-let ([(z3ctx ctx solver vals funs sorts) (current-context-info)])
+  (match-let ([(Z3-Ctx ctx solver vals funs sorts) (current-context-info)])
     (define vals*
       (for/fold ([vals* : (HashTable Symbol Z3:Ast) vals])
                 ([(x v) x->v])
         (hash-set vals* x v)))
-    (smt:with-context (z3ctx ctx solver vals* funs sorts)
+    (smt:with-context (Z3-Ctx ctx solver vals* funs sorts)
       e ...)))
 
 (define-syntax (quant/s stx)

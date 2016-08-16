@@ -12,17 +12,7 @@
            ffi/unsafe
            ffi/unsafe/alloc
            racket/runtime-path)
-  (provide (struct-out z3ctx)
-           current-context-info
-           ctx
-           get-solver
-           get-sort
-           new-sort!
-           get-val
-           set-val!
-           get-fun
-           set-fun!
-           (struct-out list-instance))
+  (provide (struct-out list-instance))
 
   (define-runtime-path libz3-path
     (case (system-type 'os)
@@ -37,79 +27,8 @@
   (define-cpointer-type _z3-config)  (provide z3-config?)
   (define-cpointer-type _z3-context) (provide z3-context?)
 
-  ;; Z3 context info structure.
-  (struct z3ctx (context
-                 solver
-                 [vals #:mutable]
-                 [funs #:mutable]
-                 [sorts #:mutable]
-                 ) #:transparent)
-
-  ; This must be parameterized every time any syntax is used
-  (define current-context-info (make-parameter #f))
-
-  (define (ctx) (z3ctx-context (current-context-info)))
-
-  (define (get-solver) (z3ctx-solver (current-context-info)))
-
-  ;; A symbol table for sorts
-  (define (get-sort id) (hash-ref (z3ctx-sorts (current-context-info)) id #f))
-  (define (new-sort! id v)
-    (define ctx-info (current-context-info))
-    (define sorts (z3ctx-sorts ctx-info))
-    (cond [(hash-has-key? sorts id)
-           (error 'new-sort! "Defining a pre-existing sort: ~a" id)]
-          [else
-           (set-z3ctx-sorts! ctx-info (hash-set sorts id v))]))
-
-  (define (set-val! id v)
-    (define ctx-info (current-context-info))
-    (define vals (z3ctx-vals ctx-info))
-    (set-z3ctx-vals! ctx-info (hash-set vals id v)))
-  (define (get-val id)
-    (define vals (z3ctx-vals (current-context-info)))
-    (hash-ref vals id (λ ()
-                        (error 'get-val "cannot find `~a` among ~a" id (hash-keys vals)))))
-
-  (define (set-fun! id v)
-    (define ctx-info (current-context-info))
-    (define funs (z3ctx-funs ctx-info))
-    (set-z3ctx-funs! ctx-info (hash-set funs id v)))
-  (define (get-fun id)
-    (define funs (z3ctx-funs (current-context-info)))
-    (hash-ref funs id (λ ()
-                        (error 'get-fun "cannot find `~a` among ~a" id (hash-keys funs)))))
-
   ;; Indicates an instance of a List (e.g. List Int) .
   (struct list-instance (sort nil is-nil cons is-cons head tail) #:transparent)
-
-  ;; PN: The original code used to have a `ctx` field that carries `_z3-context` around.
-  ;; They said it was for preventing GC or something.
-  (struct z3-boxed-pointer (ptr) #:transparent)
-  
-  (struct z3-func-decl-pointer z3-boxed-pointer () #:transparent)
-  
-  (define-syntax (define-z3-type stx)
-    (syntax-parse stx
-      [(_ _t:id
-          (~optional ptr-tag    #:defaults ([(ptr-tag    0) #'#f]))
-          (~optional ptr-struct #:defaults ([(ptr-struct 0) #'z3-boxed-pointer])))
-       (define t
-         (let ([s (symbol->string (syntax->datum #'_t))])
-           (substring s 1 (string-length s))))
-       (with-syntax ([t-name (format-id #'_t t)]
-                     [p? (format-id #'_t "~a?" t)]
-                     [boxed-p? (format-id #'_t "boxed-~a?" t)]
-                     [boxed-k  (format-id #'_t "boxed-~a"  t)])
-         #'(begin
-             (struct boxed-k ptr-struct () #:transparent)
-             (define-cpointer-type _t #f
-               z3-boxed-pointer-ptr
-               (λ (ptr)
-                 (when ptr-tag
-                   (cpointer-push-tag! ptr ptr-tag))
-                 (boxed-k ptr)))
-             (provide (rename-out [boxed-p? p?]))))]))
 
   (define-syntax defz3
     (syntax-rules (:)
@@ -132,49 +51,23 @@
          (_uint = (length args))
          (args : (_list i argtype)) -> rettype)]))
 
-  ;; Given an expr, convert it to a Z3 AST. This is a really simple recursive descent parser.
-  ;; PN: This no longer is a parser. It only coerces some base values now
-  (define (expr->_z3-ast e)
-    ;(displayln (format "IN: ~a" e))
-    (define cur-ctx (ctx))
-    (define ast
-      (let go ([e e])
-        (match e
-          ; Numerals
-          [(? exact-integer? n)
-           (mk-numeral cur-ctx (number->string n) (mk-int-sort cur-ctx))]
-          [(?  inexact-real? r)
-           (mk-numeral cur-ctx (number->string r) (mk-real-sort cur-ctx))]
-          ;; Delayed constant
-          [(? symbol? x) (get-val x)]
-          ; Anything else
-          [(? boxed-z3-app? e) (app-to-ast cur-ctx e)]
-          [(? boxed-z3-ast? e) e]
-          [_ (error 'expr->_z3-ast "unexpected: ~a" e)])))
-    ;(displayln (format "Output: ~a ~a ~a" expr ast (z3:ast-to-string cur-ctx ast)))
-    ast)
-  (provide expr->_z3-ast)
 
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   ;;;;; Low-level bindings
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-  (define-z3-type _z3-solver)
-  (define-z3-type _z3-symbol)
-  (define-z3-type _z3-ast)
-  (define-z3-type _z3-sort z3-ast-tag)
-  (define-z3-type _z3-app z3-ast-tag)
-  (define-z3-type _z3-func-decl z3-ast-tag)
-  (define-z3-type _z3-constructor)
-  (define-z3-type _z3-pattern)
-  (define-z3-type _z3-model)
-
-  (define-values (-z3-null z3-null?)
-    (let ()
-      (struct boxed-null z3-boxed-pointer () #:transparent)
-      (values (λ () (boxed-null #f))
-              boxed-null?)))
-  (provide -z3-null z3-null?)
+  (define-cpointer-type _z3-solver     ) (provide z3-solver?)
+  (define-cpointer-type _z3-symbol     ) (provide z3-symbol?)
+  (define-cpointer-type _z3-ast        ) (provide z3-ast?)
+  (define-cpointer-type _z3-sort       ) (provide z3-sort?)
+  (define-cpointer-type _z3-app        ) (provide z3-app?)
+  (define-cpointer-type _z3-func-decl  ) (provide z3-func-decl?)
+  (define-cpointer-type _z3-constructor) (provide z3-constructor?)
+  (define-cpointer-type _z3-pattern    ) (provide z3-pattern?)
+  (define-cpointer-type _z3-model      ) (provide z3-model?)
+  (define z3-null #f)
+  (define z3-null? not)
+  (provide z3-null z3-null?)
 
   ;; Enumerations
   (define _z3-lbool (_enum '(false = -1 undef true) _int32))
@@ -446,26 +339,9 @@
                              [tail : Z3:Func-Decl])])
 
   (define-type Z3:Func (Expr * → Z3:Ast))
-
   (define-type Expr (U Z3:Ast Z3:App Real Symbol))
 
   (require/typed/provide (submod ".." z3-ffi)
-    [#:struct z3ctx ([context : Z3:Context]
-                     [solver : Z3:Solver]
-                     [vals : (HashTable Symbol Z3:Ast)]
-                     [funs : (HashTable Symbol Z3:Func)]
-                     [sorts : (HashTable Symbol Z3:Sort)])
-     #:type-name Z3-Ctx]
-    [current-context-info (Parameterof (Option Z3-Ctx))]
-    [ctx (→ Z3:Context)]
-    [get-solver (→ Z3:Solver)]
-    [get-sort (Symbol → (Option Z3:Sort))]
-    [new-sort! (Symbol Z3:Sort → Void)]
-    [set-val! (Symbol Z3:Ast → Void)]
-    [get-val (Symbol → Z3:Ast)]
-    [set-fun! (Symbol Z3:Func → Void)]
-    [get-fun (Symbol → Z3:Func)]
-
     [toggle-warning-messages! (Boolean → Void)]
     [global-param-set! (Global-Param String → Void)]
     [global-param-get (Global-Param → String)]
@@ -474,7 +350,7 @@
     [mk-context (Z3:Config → Z3:Context)]
     ;[update-param-value! (Z3:Context String String → Void)]
     [interrupt (Z3:Context → Void)]
-    [-z3-null (→ Z3:Null)]
+    [z3-null Z3:Null]
 
     [mk-solver (Z3:Context → Z3:Solver)]
     [mk-simple-solver (Z3:Context → Z3:Solver)]
@@ -579,39 +455,121 @@
     [get-app-num-args (Z3:Context Z3:App → Nonnegative-Fixnum)]
     [app-to-ast (Z3:Context Z3:App → Z3:Ast)]
     [get-app-decl (Z3:Context Z3:App → Z3:Func-Decl)]
-
-    [expr->_z3-ast (Expr → Z3:Ast)]
     )
+  )
 
-  (: keyword-arg->_z3-param :
-     Keyword (U Boolean Integer String) → (Values String String))
-  (define (keyword-arg->_z3-param kw kw-arg)
-    (define kw-str (assert (regexp-replaces (keyword->string kw) '((#rx"-" "_") (#rx"\\?$" ""))) string?))
-    (define kw-arg-str (match kw-arg
-                         [#t "true"]
-                         [#f "false"]
-                         [(? integer?) (number->string kw-arg)]
-                         [(? string?) kw-arg]))
-    (values kw-str kw-arg-str))
+(require racket/match
+         'z3-ffi-typed)
 
-  (: mk-func : Z3:Func-Decl Symbol Natural → Z3:Func)
-  ;; Make a 1st order Z3 function out of func-decl
-  (define (mk-func f-decl name n)
-    (λ xs
-      (define num-xs (length xs))
-      (cond [(= n num-xs)
-             (define cur-ctx (ctx))
-             (define args (map expr->_z3-ast xs))
-             #;(printf "applying ~a to ~a~n"
+(provide (all-defined-out)
+         (all-from-out 'z3-ffi-typed))
+
+;; Given an expr, convert it to a Z3 AST. This is a really simple recursive descent parser.
+;; PN: This no longer is a parser. It only coerces some base values now
+(: expr->_z3-ast : Expr → Z3:Ast)
+(define (expr->_z3-ast e)
+  ;(displayln (format "IN: ~a" e))
+  (define cur-ctx (ctx))
+  (define ast
+    (let go ([e e])
+      (match e
+        ; Numerals
+        [(? exact-integer? n)
+         (mk-numeral cur-ctx (number->string n) (mk-int-sort cur-ctx))]
+        [(?  inexact-real? r)
+         (mk-numeral cur-ctx (number->string r) (mk-real-sort cur-ctx))]
+        ;; Delayed constant
+        [(? symbol? x) (get-val x)]
+        ; Anything else
+        [(? z3-app? e) (app-to-ast cur-ctx e)]
+        [(? z3-ast? e) e]
+        [_ (error 'expr->_z3-ast "unexpected: ~a" e)])))
+  ;(displayln (format "Output: ~a ~a ~a" expr ast (z3:ast-to-string cur-ctx ast)))
+  ast)
+
+(: keyword-arg->_z3-param : Keyword (U Boolean Integer String) → (Values String String))
+(define (keyword-arg->_z3-param kw kw-arg)
+  (define kw-str (assert (regexp-replaces (keyword->string kw) '((#rx"-" "_") (#rx"\\?$" ""))) string?))
+  (define kw-arg-str (match kw-arg
+                       [#t "true"]
+                       [#f "false"]
+                       [(? integer?) (number->string kw-arg)]
+                       [(? string?) kw-arg]))
+  (values kw-str kw-arg-str))
+
+(: mk-func : Z3:Func-Decl Symbol Natural → Z3:Func)
+;; Make a 1st order Z3 function out of func-decl
+(define (mk-func f-decl name n)
+  (λ xs
+    (define num-xs (length xs))
+    (cond [(= n num-xs)
+           (define cur-ctx (ctx))
+           (define args (map expr->_z3-ast xs))
+           #;(printf "applying ~a to ~a~n"
                      (func-decl-to-string cur-ctx f-decl)
                      (for/list : (Listof Sexp) ([arg args])
                        (define arg-str (ast-to-string cur-ctx arg))
                        (define sort (sort-to-string cur-ctx (z3-get-sort cur-ctx arg)))
                        `(,arg-str : ,sort)))
-             (apply mk-app cur-ctx f-decl args)]
-            [else
-             (error name "expect ~a arguments, given ~a" n num-xs)])))
-  )
+           (apply mk-app cur-ctx f-decl args)]
+          [else
+           (error name "expect ~a arguments, given ~a" n num-xs)])))
 
-(require 'z3-ffi-typed)
-(provide (all-from-out 'z3-ffi-typed))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; Dynamic parameter stuff
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; Z3 context info structure.
+(struct Z3-Ctx ([context : Z3:Context]
+                [solver : Z3:Solver]
+                [vals : (HashTable Symbol Z3:Ast)]
+                [funs : (HashTable Symbol Z3:Func)]
+                [sorts : (HashTable Symbol Z3:Sort)])
+  #:transparent
+  #:mutable)
+
+; This must be parameterized every time any syntax is used
+(define current-context-info : (Parameterof (Option Z3-Ctx)) (make-parameter #f))
+
+(define (ctx) : Z3:Context (Z3-Ctx-context (assert (current-context-info))))
+
+(define (get-solver) : Z3:Solver (Z3-Ctx-solver (assert (current-context-info))))
+
+;; A symbol table for sorts
+(: get-sort : Symbol → (Option Z3:Sort))
+(define (get-sort id)
+  (hash-ref (Z3-Ctx-sorts (assert (current-context-info))) id #f))
+
+(: new-sort! : Symbol Z3:Sort → Void)
+(define (new-sort! id v)
+  (define ctx-info (assert (current-context-info)))
+  (define sorts (Z3-Ctx-sorts ctx-info))
+  (cond [(hash-has-key? sorts id)
+         (error 'new-sort! "Defining a pre-existing sort: ~a" id)]
+        [else
+         (set-Z3-Ctx-sorts! ctx-info (hash-set sorts id v))]))
+
+(: set-val! : Symbol Z3:Ast → Void)
+(define (set-val! id v)
+  (define ctx-info (assert (current-context-info)))
+  (define vals (Z3-Ctx-vals ctx-info))
+  (set-Z3-Ctx-vals! ctx-info (hash-set vals id v)))
+
+(: get-val : Symbol → Z3:Ast)
+(define (get-val id)
+  (define vals (Z3-Ctx-vals (assert (current-context-info))))
+  (hash-ref vals id (λ ()
+                      (error 'get-val "cannot find `~a` among ~a" id (hash-keys vals)))))
+
+(: set-fun! : Symbol Z3:Func → Void)
+(define (set-fun! id v)
+  (define ctx-info (assert (current-context-info)))
+  (define funs (Z3-Ctx-funs ctx-info))
+  (set-Z3-Ctx-funs! ctx-info (hash-set funs id v)))
+
+(: get-fun : Symbol → Z3:Func)
+(define (get-fun id)
+  (define funs (Z3-Ctx-funs (assert (current-context-info))))
+  (hash-ref funs id (λ ()
+                      (error 'get-fun "cannot find `~a` among ~a" id (hash-keys funs)))))

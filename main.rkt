@@ -43,7 +43,7 @@
   (define ctx (mk-context config))
   (define solver (mk-solver ctx))
   (define-values (vals funs sorts) (init-builtins ctx))
-  (z3ctx ctx solver vals funs sorts))
+  (Z3-Ctx ctx solver vals funs sorts))
 
 ; For a list of keyword arguments smt:new-context accepts, see
 ; http://research.microsoft.com/en-us/um/redmond/projects/z3/config.html.
