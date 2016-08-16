@@ -104,11 +104,10 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; Initialize builtins.
-(: init-builtins : → (Values (HashTable Symbol Z3:Ast)
-                             (HashTable Symbol Z3:Func)
-                             (HashTable Symbol Z3:Sort)))
-(define (init-builtins)
-  (define cur-ctx (ctx))
+(: init-builtins : Z3:Context → (Values (HashTable Symbol Z3:Ast)
+                                        (HashTable Symbol Z3:Func)
+                                        (HashTable Symbol Z3:Sort)))
+(define (init-builtins cur-ctx)
   (values
    (for/hasheq : (HashTable Symbol Z3:Ast) ([(k fn) (in-hash builtin-vals-eval-at-init)])
      (values k (fn cur-ctx)))
