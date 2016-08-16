@@ -216,7 +216,8 @@
   ; TODO: solver-set-params
   (defz3 solver-inc-ref! : _z3-context _z3-solver -> _void)
   (defz3 solver-dec-ref! : _z3-context _z3-solver -> _void)
-  ; TODO: solver-push, solver-pop
+  (defz3 solver-push! : _z3-context _z3-solver -> _void)
+  (defz3 solver-pop! : _z3-context _z3-solver _uint -> _void)
   (defz3 solver-reset! : _z3-context _z3-solver -> _void)
   ; TODO: solver-get-num-scopes
   (defz3 solver-assert! : _z3-context _z3-solver _z3-ast -> _void)
@@ -481,6 +482,8 @@
     [solver-get-help (Z3:Context Z3:Solver → String)]
     [solver-inc-ref! (Z3:Context Z3:Solver → Void)]
     [solver-dec-ref! (Z3:Context Z3:Solver → Void)]
+    [solver-push! (Z3:Context Z3:Solver → Void)]
+    [solver-pop! (Z3:Context Z3:Solver Nonnegative-Fixnum -> Void)]
     [solver-reset! (Z3:Context Z3:Solver → Void)]
     [solver-assert! (Z3:Context Z3:Solver Z3:Ast → Void)]
     [solver-assert-and-track! (Z3:Context Z3:Solver Z3:Ast Z3:Ast → Void)]

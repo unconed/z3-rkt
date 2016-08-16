@@ -263,6 +263,25 @@
 (define (check-sat)
   (solver-check (ctx) (get-solver)))
 
+(: reset! : → Void)
+(define (reset!)
+  (solver-reset! (ctx) (get-solver)))
+
+(: push! : → Void)
+(define (push!)
+  (solver-push! (ctx) (get-solver)))
+
+(: pop! ([] [Nonnegative-Fixnum] . ->* . Void))
+(define (pop! [num-backtracks 1])
+  (solver-pop! (ctx) (get-solver) num-backtracks))
+
+(define-syntax-rule (with-local-push-pop e ...)
+  (begin0
+      (let ()
+        (push!)
+        e ...)
+    (pop!)))
+
 (: get-model : → Z3:Model)
 (define (get-model)
   (solver-get-model (ctx) (get-solver)))
@@ -295,7 +314,10 @@
    make-fun/list
    assert!
    check-sat
-   get-model))
+   get-model
+   push!
+   pop!
+   with-local-push-pop))
  ; XXX move these to a submodule once Racket 5.3 is released
  (prefix-out smt:internal:
              (combine-out

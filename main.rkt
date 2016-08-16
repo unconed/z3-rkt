@@ -42,10 +42,7 @@
 
   (define ctx (mk-context config))
   (define solver (mk-solver ctx))
-  (define-values (vals funs sorts)
-    (let ([bootstrap-z3ctx (z3ctx ctx solver (hasheq) (hasheq) (hasheq))]) ;; TODO hacky
-      (smt:with-context bootstrap-z3ctx
-        (init-builtins))))
+  (define-values (vals funs sorts) (init-builtins))
   (z3ctx ctx solver vals funs sorts))
 
 ; For a list of keyword arguments smt:new-context accepts, see
