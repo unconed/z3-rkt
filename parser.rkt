@@ -9,8 +9,7 @@
          racket/match
          racket/syntax
          syntax/parse/define
-         (except-in "z3-wrapper.rkt" set-logic)
-         (prefix-in z3: (only-in "z3-wrapper.rkt" set-logic))
+         "z3-wrapper.rkt"
          )
 (require/typed racket/syntax
   [format-symbol (String Any * → Symbol)])
@@ -20,12 +19,6 @@
 (define (handle-next-error)
   (define err (get-error-code (ctx)))
   (raise-user-error "~s" (get-error-msg err)))
-
-(: set-logic : #|TODO|# Symbol → Void)
-;; Set the logic for this context. This can only be called once.
-(define (set-logic logic)
-  (unless (z3:set-logic (ctx) (symbol->string logic))
-    (handle-next-error)))
 
 (: dynamic-declare-sort : Symbol → Z3:Sort)
 ;; Declare a new sort.
@@ -67,7 +60,7 @@
 (define (make-uninterpreted name argsorts retsort)
   (define cur-ctx (ctx))
   (define args (cast (map sort-expr->_z3-sort argsorts) (Listof Z3:Sort)))
-  (define ret (tr:assert (sort-expr->_z3-sort retsort) z3-sort?))
+  (define ret (assert (sort-expr->_z3-sort retsort) z3-sort?))
   (cond [(null? argsorts)
          (app-to-ast cur-ctx (mk-fresh-const cur-ctx name ret))]
         [else
@@ -262,30 +255,27 @@
      ;(pretty-print (syntax->datum gen))
      gen]))
 
-(: assert : Expr → Void)
-(define (assert e)
-  (assert-cnstr (ctx) (expr->_z3-ast e)))
+(: assert! : Expr → Void)
+(define (assert! e)
+  (solver-assert! (ctx) (get-solver) (expr->_z3-ast e)))
 
-(: check-sat : → Z3:Sat-LBool)
+(: check-sat : → Z3:LBool)
 (define (check-sat)
-  (define-values (rv model) (check-and-get-model (ctx)))
-  (when model
-    (set-current-model! model))
-  rv)
+  (solver-check (ctx) (get-solver)))
 
-(: smt:eval : Expr → Any)
-(define (smt:eval expr)
-  (eval-in-model (get-current-model) expr))
-
-(: eval-in-model : Z3:Model Expr → Any)
-(define (eval-in-model model expr)
-  (match/values (eval (ctx) model (expr->_z3-ast expr))
-    [((? values) (? values ast)) (_z3-ast->expr ast)]
-    [(_          _             ) (error 'eval-in-model "Evaluation failed")]))
+(: get-model : → Z3:Model)
+(define (get-model)
+  (solver-get-model (ctx) (get-solver)))
 
 (define-syntax-rule (with-context info body ...)
   (parameterize ([current-context-info info])
-    body ...))
+    (let ([solver (get-solver)]
+          [ctx (ctx)])
+      (begin0
+          (let ()
+            (solver-inc-ref! ctx solver)
+            body ...)
+        (solver-dec-ref! ctx solver)))))
 
 ;; XXX need to implement a function to get all models. To do that we need
 ;; push, pop, and a way to navigate a model.
@@ -303,11 +293,9 @@
    make-fun
    make-fun/vector
    make-fun/list
-   assert
+   assert!
    check-sat
-   (rename-out [get-current-model get-model])))
- smt:eval
- (prefix-out smt: set-logic)
+   get-model))
  ; XXX move these to a submodule once Racket 5.3 is released
  (prefix-out smt:internal:
              (combine-out
