@@ -29,9 +29,8 @@
   (hasheq '#:timeout 2000
           '#:well-sorted-check? #t))
 
-(: new-context-proc : (Listof Keyword) (Listof (U Boolean Integer String)) → Z3-Ctx)
-(define (new-context-proc kws kw-args)
-  (define config (mk-config))
+(: new-context-proc : Z3:Config → (Listof Keyword) (Listof (U Boolean Integer String)) → Z3-Ctx)
+(define ((new-context-proc config) kws kw-args)
   (define params
     (for/fold ([params : (HashTable Keyword (U Boolean Integer String)) z3-default-overrides])
               ([kw kws] [kw-arg kw-args])
@@ -49,10 +48,21 @@
 ; http://research.microsoft.com/en-us/um/redmond/projects/z3/config.html.
 ; All keywords are in standard Racket form, with the words lowercased, the
 ; underscores changed to hyphens, and a ? suffixed to boolean arguments.
-(define smt:new-context (make-new-context-keyword-procedure new-context-proc))
+(define (smt:new-context [config : Z3:Config])
+  (make-new-context-keyword-procedure (new-context-proc config)))
+
+(define-syntax-rule (with-fresh-managed-context (args ...) e ...)
+  (let ()
+    (define cfg (mk-config))
+    (define info ((smt:new-context cfg) args ...))
+    (define ctx (Z3-Ctx-context info))
+    (begin0
+        (smt:with-context info e ...)
+      (del-context ctx)
+      (del-config  cfg))))
 
 (provide
  (all-from-out "parser.rkt"
                "builtins.rkt"
                "derived.rkt")
- smt:new-context)
+ with-fresh-managed-context)

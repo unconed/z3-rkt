@@ -92,10 +92,10 @@
     -> (ok? : _bool)
     -> (and ok? val))
 
-  (defz3 mk-config #:wrapper (allocator del-config) : -> _z3-config)
+  (defz3 mk-config #|#:wrapper (allocator del-config)|# : -> _z3-config)
   (defz3 set-param-value! : _z3-config _string _string -> _void)
 
-  (defz3 mk-context #:wrapper (allocator del-context) : _z3-config -> _z3-context)
+  (defz3 mk-context #|#:wrapper (allocator del-context)|# : _z3-config -> _z3-context)
   ;(defz3 update-param-value! : _z3-context _string _string -> _void) ; get Z3 Exception when used
   (defz3 interrupt : _z3-context -> _void)
 
@@ -346,8 +346,10 @@
     [global-param-set! (Global-Param String → Void)]
     [global-param-get (Global-Param → String)]
     [mk-config (→ Z3:Config)]
+    [del-config (Z3:Config → Void)]
     [set-param-value! (Z3:Config String String → Void)]
     [mk-context (Z3:Config → Z3:Context)]
+    [del-context (Z3:Context → Void)]
     ;[update-param-value! (Z3:Context String String → Void)]
     [interrupt (Z3:Context → Void)]
     [z3-null Z3:Null]
