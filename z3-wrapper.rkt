@@ -15,14 +15,13 @@
   (provide (struct-out z3ctx)
            current-context-info
            ctx
+           get-solver
            get-sort
            new-sort!
            get-val
            set-val!
            get-fun
            set-fun!
-           set-current-model!
-           get-current-model
            (struct-out list-instance))
 
   (define-runtime-path libz3-path
@@ -40,16 +39,18 @@
 
   ;; Z3 context info structure.
   (struct z3ctx (context
+                 solver
                  [vals #:mutable]
                  [funs #:mutable]
                  [sorts #:mutable]
-                 [current-model #:mutable]
                  ) #:transparent)
 
   ; This must be parameterized every time any syntax is used
   (define current-context-info (make-parameter #f))
 
   (define (ctx) (z3ctx-context (current-context-info)))
+
+  (define (get-solver) (z3ctx-solver (current-context-info)))
 
   ;; A symbol table for sorts
   (define (get-sort id) (hash-ref (z3ctx-sorts (current-context-info)) id #f))
@@ -79,26 +80,12 @@
     (hash-ref funs id (λ ()
                         (error 'get-fun "cannot find `~a` among ~a" id (hash-keys funs)))))
 
-  ;; The current model for this context. This is a mutable box.
-  (define (get-current-model)
-    (cond
-      [(z3ctx-current-model (current-context-info)) => values]
-      [else (error 'get-current-model "No model found")]))
-  (define (set-current-model! new-model)
-    (define ctx-info (current-context-info))
-    (set-z3ctx-current-model! ctx-info new-model))
-
   ;; Indicates an instance of a List (e.g. List Int) .
   (struct list-instance (sort nil is-nil cons is-cons head tail) #:transparent)
 
-  ;; We wrap all our pointers up with a z3-boxed-pointer. This serves two purposes:
-  ;; - we hold a strong ref to the context so that it doesn't get GC'd
-  ;;   PN: really? Doesn't parameter reference `(current-context-info)` prevent GC?
-  ;;   PN: ok, probably something about GC moving pointers around. I'm not touching this for now.
-  ;; - we can attach pretty printers and other helpful utilities
-  ;; The extra `tag` field is for getting around TR's new any-wrap/c contract
-  ;; that disallows extracting cpointer fields
-  (struct z3-boxed-pointer (ctx ptr) #:transparent)
+  ;; PN: The original code used to have a `ctx` field that carries `_z3-context` around.
+  ;; They said it was for preventing GC or something.
+  (struct z3-boxed-pointer (ptr) #:transparent)
   
   (struct z3-func-decl-pointer z3-boxed-pointer () #:transparent)
   
@@ -121,7 +108,7 @@
                (λ (ptr)
                  (when ptr-tag
                    (cpointer-push-tag! ptr ptr-tag))
-                 (boxed-k (ctx) ptr)))
+                 (boxed-k ptr)))
              (provide (rename-out [boxed-p? p?]))))]))
 
   (define-syntax defz3
@@ -185,7 +172,7 @@
   (define-values (-z3-null z3-null?)
     (let ()
       (struct boxed-null z3-boxed-pointer () #:transparent)
-      (values (λ () (boxed-null (ctx) #f))
+      (values (λ () (boxed-null #f))
               boxed-null?)))
   (provide -z3-null z3-null?)
 
@@ -199,6 +186,8 @@
                                      internal-fatal dec-ref-error) _int32))
 
   (define _z3-error-handler (_fun #:keep #t _int -> _void))
+
+  (defz3 toggle-warning-messages! : _bool -> _void)
 
   ;; Deallocators
   (defz3 del-config  : _z3-config  -> _void)
@@ -235,7 +224,8 @@
   ; TODO: solver-get-assertions
   (defz3 solver-check : _z3-context _z3-solver -> _z3-lbool)
   ; TODO: solver-check-assumptions
-  ; TODO: solver-get-model, solver-get-proof, solver-get-unsat-core
+  (defz3 solver-get-model : _z3-context _z3-solver -> _z3-model)
+  ; TODO: solver-get-proof, solver-get-unsat-core
   (defz3 solver-get-reason-unknown : _z3-context _z3-solver -> _string)
   ; TODO: solver-get-statistics
   (defz3 solver-to-string : _z3-context _z3-solver -> _string)
@@ -405,7 +395,7 @@
   (require racket/match)
   (provide (all-defined-out))
   
-  (define-type Z3:LBool (U #f 'undef #t))
+  (define-type Z3:LBool (U 'false 'undef 'true))
   (define-type Z3:Sat-LBool (U 'unsat 'unknown 'sat))
   (define-type Z3:Ast-Kind (U 'numeral 'app 'var 'quantifier 'unknown))
   (define-type Z3:Error-Code (U 'ok 'sort-error 'iob 'invalid-arg 'parser-error
@@ -460,22 +450,22 @@
 
   (require/typed/provide (submod ".." z3-ffi)
     [#:struct z3ctx ([context : Z3:Context]
+                     [solver : Z3:Solver]
                      [vals : (HashTable Symbol Z3:Ast)]
                      [funs : (HashTable Symbol Z3:Func)]
-                     [sorts : (HashTable Symbol Z3:Sort)]
-                     [current-model : (Option Z3:Model)])
+                     [sorts : (HashTable Symbol Z3:Sort)])
      #:type-name Z3-Ctx]
     [current-context-info (Parameterof (Option Z3-Ctx))]
     [ctx (→ Z3:Context)]
+    [get-solver (→ Z3:Solver)]
     [get-sort (Symbol → (Option Z3:Sort))]
     [new-sort! (Symbol Z3:Sort → Void)]
     [set-val! (Symbol Z3:Ast → Void)]
     [get-val (Symbol → Z3:Ast)]
     [set-fun! (Symbol Z3:Func → Void)]
     [get-fun (Symbol → Z3:Func)]
-    [get-current-model (→ Z3:Model)]
-    [set-current-model! (Z3:Model → Void)]
 
+    [toggle-warning-messages! (Boolean → Void)]
     [global-param-set! (Global-Param String → Void)]
     [global-param-get (Global-Param → String)]
     [mk-config (→ Z3:Config)]
@@ -494,9 +484,10 @@
     [solver-reset! (Z3:Context Z3:Solver → Void)]
     [solver-assert! (Z3:Context Z3:Solver Z3:Ast → Void)]
     [solver-assert-and-track! (Z3:Context Z3:Solver Z3:Ast Z3:Ast → Void)]
-    [solver-check (Z3:Context Z3:Solver -> Z3:LBool)]
-    [solver-get-reason-unknown (Z3:Context Z3:Solver -> String)]
-    [solver-to-string (Z3:Context Z3:Solver -> String)]
+    [solver-check (Z3:Context Z3:Solver → Z3:LBool)]
+    [solver-get-model (Z3:Context Z3:Solver → Z3:Model)]
+    [solver-get-reason-unknown (Z3:Context Z3:Solver → String)]
+    [solver-to-string (Z3:Context Z3:Solver → String)]
     
     [mk-string-symbol (Z3:Context String → Z3:Symbol)]
     [mk-uninterpreted-sort (Z3:Context Z3:Symbol → Z3:Sort)]
