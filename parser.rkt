@@ -14,23 +14,17 @@
 (require/typed racket/syntax
   [format-symbol (String Any * → Symbol)])
 
-(: handle-next-error : → Nothing)
-;; Handle the next error.
-(define (handle-next-error)
-  (define err (get-error-code (ctx)))
-  (raise-user-error "~s" (get-error-msg err)))
-
 (: dynamic-declare-sort : Symbol → Z3:Sort)
 ;; Declare a new sort.
 (define (dynamic-declare-sort id)
-  (define T (mk-uninterpreted-sort (ctx) (make-symbol id)))
+  (define T (mk-uninterpreted-sort (get-context) (make-symbol id)))
   (new-sort! id T)
   T)
 
 (: make-symbol : (U Symbol String) → Z3:Symbol)
 ;; Helper function to make a symbol with the given name (Racket symbol)
 (define (make-symbol s)
-  (cond [(string? s) (mk-string-symbol (ctx) s)]
+  (cond [(string? s) (mk-string-symbol (get-context) s)]
         [else        (make-symbol (format "~a" s))]))
 (define-simple-macro (declare-sort T:id) (dynamic-declare-sort 'T))
 
@@ -50,7 +44,7 @@
 ;; Given a Z3 AST, convert it to an expression that can be parsed again into an AST,
 ;; assuming the same context. This is the inverse of expr->_z3-ast above.
 (define (_z3-ast->expr ast)
-  (read (open-input-string (ast-to-string (ctx) ast))))
+  (read (open-input-string (ast-to-string (get-context) ast))))
 
 (: make-uninterpreted
    (case-> [String Null Any → Z3:Ast]
@@ -58,7 +52,7 @@
            [String (Listof Any) Any → (U Z3:Ast Z3:Func)]))
 ;; Make an uninterpreted function given arg sorts and return sort.
 (define (make-uninterpreted name argsorts retsort)
-  (define cur-ctx (ctx))
+  (define cur-ctx (get-context))
   (define args (cast (map sort-expr->_z3-sort argsorts) (Listof Z3:Sort)))
   (define ret (assert (sort-expr->_z3-sort retsort) z3-sort?))
   (cond [(null? argsorts)
@@ -102,35 +96,37 @@
   (for/list : (Listof (U Z3:App Z3:Func)) ([i (in-range 0 n)])
     (make-uninterpreted "" 'args ...)))
 
-(: constr->_z3-constructor : Symbol (Listof (List Symbol Symbol)) → Z3:Constructor)
+(: constr->_z3-constructor :
+   Symbol (Listof (List Symbol (U Symbol Z3:Sort))) → Z3:Constructor)
 (define (constr->_z3-constructor k field-list)
   (define names-sorts-refs
-    (for/list : (Listof (List Z3:Symbol (U Z3:Sort Z3:Null) Nonnegative-Fixnum)) ([field field-list])
+    (for/list : (Listof (List Z3:Symbol (U Z3:Sort Z3:Null) Nonnegative-Fixnum))
+              ([field : (List Symbol (U Symbol Z3:Sort)) field-list])
       (match-define (list x t) field)
       (define nameᵢ (make-symbol x))
       (define sortᵢ (sort-expr->_z3-sort t))
       (define refᵢ 0)
       (list nameᵢ sortᵢ refᵢ)))
-  (mk-constructor (ctx)
+  (mk-constructor (get-context)
                   (make-symbol k)
                   (make-symbol (format "is-~a" k))
                   names-sorts-refs))
 
 (: dynamic-declare-datatype :
    Symbol
-   (Listof (U Symbol (Pairof Symbol (Listof (List Symbol Symbol)))))
+   (Listof (U Symbol (Pairof Symbol (Listof (List Symbol (U Symbol Z3:Sort))))))
    → (Values Z3:Sort
              (Listof (List (U Z3:Ast Z3:Func) Z3:Func (Listof Z3:Func)))))
 ;; TODO: type parameters
 (define (dynamic-declare-datatype T-id vrs)
-  (define cur-ctx (ctx))
+  (define cur-ctx (get-context))
 
   ;; create constructors
   (define constructors
     (for/list : (Listof Z3:Constructor) ([vr vrs])
       (match vr
         [(cons k flds) (constr->_z3-constructor k flds)]
-        [(? symbol? k)   (constr->_z3-constructor k '())])))
+        [(? symbol? k) (constr->_z3-constructor k '())])))
 
   ;; define datatype
   (define T (mk-datatype cur-ctx (make-symbol T-id) constructors))
@@ -182,8 +178,6 @@
 ;; Declare a complex datatype.
 ;; TODO: handle type parameters
 ;; TODO: handle mutually recursive types
-;; TODO: should I use "/s" suffix to stay consistent with builtin ones?
-;;       If these are limited in (with-context ...), probably no need
 (define-syntax (declare-datatypes stx)
   (syntax-parse stx
     ;; My attempt at ADT
@@ -207,7 +201,7 @@
      
      (define gen
        #`(begin
-           (define cur-ctx (ctx))
+           (define cur-ctx (get-context))
            
            ;; create constructors
            #,@(for/list ([con-K      (in-list con-Ks)]
@@ -257,23 +251,23 @@
 
 (: assert! : Expr → Void)
 (define (assert! e)
-  (solver-assert! (ctx) (get-solver) (expr->_z3-ast e)))
+  (solver-assert! (get-context) (get-solver) (expr->_z3-ast e)))
 
 (: check-sat : → Z3:LBool)
 (define (check-sat)
-  (solver-check (ctx) (get-solver)))
+  (solver-check (get-context) (get-solver)))
 
 (: reset! : → Void)
 (define (reset!)
-  (solver-reset! (ctx) (get-solver)))
+  (solver-reset! (get-context) (get-solver)))
 
 (: push! : → Void)
 (define (push!)
-  (solver-push! (ctx) (get-solver)))
+  (solver-push! (get-context) (get-solver)))
 
 (: pop! ([] [Nonnegative-Fixnum] . ->* . Void))
 (define (pop! [num-backtracks 1])
-  (solver-pop! (ctx) (get-solver) num-backtracks))
+  (solver-pop! (get-context) (get-solver) num-backtracks))
 
 (define-syntax-rule (with-local-push-pop e ...)
   (begin0
@@ -284,17 +278,7 @@
 
 (: get-model : → Z3:Model)
 (define (get-model)
-  (solver-get-model (ctx) (get-solver)))
-
-(define-syntax-rule (with-context info body ...)
-  (parameterize ([current-context-info info])
-    (let ([solver (get-solver)]
-          [ctx (ctx)])
-      (begin0
-          (let ()
-            (solver-inc-ref! ctx solver)
-            body ...)
-        (solver-dec-ref! ctx solver)))))
+  (solver-get-model (get-context) (get-solver)))
 
 ;; XXX need to implement a function to get all models. To do that we need
 ;; push, pop, and a way to navigate a model.
@@ -303,7 +287,6 @@
  (prefix-out
   smt:
   (combine-out
-   with-context
    declare-datatypes
    declare-datatype dynamic-declare-datatype
    declare-sort dynamic-declare-sort

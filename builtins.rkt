@@ -15,11 +15,6 @@
 ;;;;; Utils (from old `utils.rkt`)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; This is the prototype namespace for new contexts. It is added to by
-;; define-builtin-symbol and define-builtin-proc below.
-(define builtin-vals-eval-at-init : (HashTable Symbol (Z3:Context → Z3:Ast)) (make-hasheq))
-(define builtin-sorts             : (HashTable Symbol (Z3:Context → Z3:Sort)) (make-hasheq))
-
 (begin-for-syntax
   
   (define/contract (add-smt-suffix id)
@@ -29,17 +24,6 @@
   (define-syntax-class arity
     #:description "function arity (natural or *)"
     (pattern (~or n:nat (~literal *) (~literal lassoc) (~literal rassoc)))))
-
-(define-syntax (define-builtin-symbol stx)
-  (syntax-parse stx
-    [(_ c:id v)
-     (with-syntax ([c/s (add-smt-suffix #'c)])
-       #'(begin
-           ; PN: why not assign `v` to it?
-           ; --> because there's always `ctx` that needs passing in
-           (define c/s 'c)
-           (hash-set! builtin-vals-eval-at-init 'c v)
-           (provide c/s)))]))
 
 (define-syntax (define-builtin-proc stx)
   (syntax-parse stx
@@ -56,9 +40,9 @@
                 (define (f/s [x : Expr] ...)
                   #;(printf "Applying ~a to ~a~n"
                           'f/s
-                          (list `(,(ast-to-string (ctx) (expr->_z3-ast x)) :
-                                  ,(sort-to-string (ctx) (z3-get-sort (ctx) (expr->_z3-ast x)))) ...))
-                  (v (ctx) (expr->_z3-ast x) ...))
+                          (list `(,(ast-to-string (get-context) (expr->_z3-ast x)) :
+                                  ,(sort-to-string (get-context) (z3-get-sort (get-context) (expr->_z3-ast x)))) ...))
+                  (v (get-context) (expr->_z3-ast x) ...))
                 (provide f/s)))]
          [(~literal *)
           #'(begin
@@ -67,8 +51,8 @@
                 #;(printf "Applying ~a to ~a~n"
                           'f/s
                           (for/list : (Listof String) ([arg args])
-                            (ast-to-string (ctx) arg)))
-                (apply v (ctx) (map expr->_z3-ast xs)))
+                            (ast-to-string (get-context) arg)))
+                (apply v (get-context) (map expr->_z3-ast xs)))
               (provide f/s))]
          [(~literal lassoc)
           #'(begin
@@ -78,9 +62,9 @@
                    ;; TODO just debugging
                    #;(printf "Applying ~a to ~a, ~a~n"
                            'f/s
-                           (ast-to-string (ctx) (expr->_z3-ast x))
-                           (ast-to-string (ctx) (expr->_z3-ast y)))
-                   (v (ctx) (expr->_z3-ast x) (expr->_z3-ast y)))))
+                           (ast-to-string (get-context) (expr->_z3-ast x))
+                           (ast-to-string (get-context) (expr->_z3-ast y)))
+                   (v (get-context) (expr->_z3-ast x) (expr->_z3-ast y)))))
               (provide f/s))]
          [(~literal rassoc)
           #'(begin
@@ -90,33 +74,24 @@
                    ;; TODO just debugging
                    #;(printf "Applying ~a to ~a, ~a~n"
                            'f/s
-                           (ast-to-string (ctx) (expr->_z3-ast x))
-                           (ast-to-string (ctx) (expr->_z3-ast y)))
-                   (v (ctx) (expr->_z3-ast x) (expr->_z3-ast y)))))
+                           (ast-to-string (get-context) (expr->_z3-ast x))
+                           (ast-to-string (get-context) (expr->_z3-ast y)))
+                   (v (get-context) (expr->_z3-ast x) (expr->_z3-ast y)))))
               (provide f/s))]))]))
 
-(define-simple-macro (define-builtin-sort x:id v)
-  (hash-set! builtin-sorts 'x v))
+(define-syntax (define-builtin-sort stx)
+  (syntax-parse stx
+    [(_ T:id f)
+     (with-syntax ([T/s (add-smt-suffix #'T)])
+       #'(begin
+           (define (T/s)
+             (f (get-context)))
+           (provide T/s)))]))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; from old `builtins.rkt`
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;; Initialize builtins.
-(: init-builtins : Z3:Context → (Values (HashTable Symbol Z3:Ast)
-                                        (HashTable Symbol Z3:Func)
-                                        (HashTable Symbol Z3:Sort)))
-(define (init-builtins cur-ctx)
-  (values
-   (for/hasheq : (HashTable Symbol Z3:Ast) ([(k fn) (in-hash builtin-vals-eval-at-init)])
-     (values k (fn cur-ctx)))
-   (hasheq)
-   (for/hasheq : (HashTable Symbol Z3:Sort) ([(k fn) (in-hash builtin-sorts)])
-     (values k (fn cur-ctx)))))
-(provide init-builtins)
-
-(define int-list-key : Symbol (gensym 'IntList_))
 
 (: rassoc (∀ (X) (X X → X) → X * → X))
 ;; Wraps a binary function so that arguments are processed
@@ -135,8 +110,8 @@
   (foldl (flip fn) fst rst))
 
 ;; Builtin symbols
-(define-builtin-symbol true mk-true)
-(define-builtin-symbol false mk-false)
+(define-builtin-proc true mk-true 0)
+(define-builtin-proc false mk-false 0)
 (define-builtin-proc = mk-eq 2)
 (define-builtin-proc distinct mk-distinct *)
 (define-builtin-proc not mk-not 1)
@@ -183,20 +158,11 @@
     [(_ m) m]
     [(_ m [x y] rst ...) (hash-set* (hash-set m x y) rst ...)]))
 
-(define-syntax-rule (with-vals x->v e ...)
-  (match-let ([(Z3-Ctx ctx solver vals funs sorts) (current-context-info)])
-    (define vals*
-      (for/fold ([vals* : (HashTable Symbol Z3:Ast) vals])
-                ([(x v) x->v])
-        (hash-set vals* x v)))
-    (smt:with-context (Z3-Ctx ctx solver vals* funs sorts)
-      e ...)))
-
 (define-syntax (quant/s stx)
   (syntax-parse stx
     [(_ _ () e) #'e]
     [(_ mk-quant:id ([x:id t] ...) e #:patterns pats)
-     #'(let ([cur-ctx (ctx)])
+     #'(let ([cur-ctx (get-context)])
          (let ([x (mk-fresh-const cur-ctx
                                   (symbol->string 'x)
                                   (assert (smt:internal:sort-expr->_z3-sort 't) z3-sort?))] ...)
@@ -220,7 +186,7 @@
   (match xs*
     ['() e]
     [xs
-     (define cur-ctx (ctx))
+     (define cur-ctx (get-context))
      (define bounds
        (for/list : (Listof Z3:App) ([x xs] [t ts])
          (mk-fresh-const cur-ctx
