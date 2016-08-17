@@ -2,7 +2,10 @@
 
 (provide (all-defined-out))
 
-(require racket/match
+(require (for-syntax racket/base
+                     racket/syntax
+                     syntax/parse)
+         racket/match
          syntax/parse/define)
 
 (define-type Z3:LBool (U 'false 'undef 'true))
@@ -276,12 +279,22 @@
   #:transparent
   #:mutable)
 
-(define current-context : (Parameterof (Option Z3:Context)) (make-parameter #f))
-(define current-solver : (Parameterof (Option Z3:Solver)) (make-parameter #f))
-(define current-env : (Parameterof (Option Env)) (make-parameter #f))
-(define (get-context) : Z3:Context (assert (current-context)))
-(define (get-solver) : Z3:Solver (assert (current-solver)))
-(define (get-env) : Env (assert (current-env)))
+(define-syntax (define-parameter/getter stx)
+  (syntax-parse stx
+    [(_ param:id (~literal :) T)
+     (with-syntax ([current-param (format-id stx "current-~a" #'param)]
+                   [get-param     (format-id stx     "get-~a" #'param)])
+       #'(begin
+           (define current-param : (Parameterof (Option T)) (make-parameter #f))
+           (define (get-param) : T
+             (define ans (current-param))
+             (cond
+               [ans ans]
+               [else (error 'get-param "Expect ~a to have been parameterized" 'param)]))))]))
+
+(define-parameter/getter context : Z3:Context)
+(define-parameter/getter solver  : Z3:Solver)
+(define-parameter/getter env     : Env)
 
 ;; A symbol table for sorts
 (: get-sort : Symbol → (Option Z3:Sort))
@@ -321,6 +334,14 @@
   (hash-ref funs id (λ ()
                       (error 'get-fun "cannot find `~a` among ~a" id (hash-keys funs)))))
 
+;; Primitive sorts
+(define (Int/s) (get-sort 'Int))
+(define (Real/s) (get-sort 'Real))
+(define (Bool/s) (get-sort 'Bool))
+
+;; Primitive constants
+(define (true/s) (get-val 'true))
+(define (false/s) (get-val 'false))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Bookeeping forms
@@ -340,8 +361,8 @@
       (del-context ctx)
       (del-config cfg))))
 
-(define-syntax-rule (with-fresh-env e ...)
-  (parameterize ([current-env (Env (hasheq) (hasheq) (hasheq))])
+(define-syntax-rule (with-init-env e ...)
+  (parameterize ([current-env (init-env)])
     e ...))
 
 (define-syntax-rule (with-vals x->v e ...)
@@ -352,3 +373,16 @@
         (hash-set vals* x v)))
     (parameterize ([current-env (Env vals* funs sorts*)])
       e ...)))
+
+(define (init-env) : Env
+  (define ctx (get-context))
+  (define vals : (HashTable Symbol Z3:Ast)
+    (hasheq 'true (mk-true ctx)
+            'false (mk-false ctx)))
+  (define funs : (HashTable Symbol Z3:Func)
+    (hasheq))
+  (define sorts : (HashTable Symbol Z3:Sort)
+    (hasheq 'Int (mk-int-sort ctx)
+            'Real (mk-real-sort ctx)
+            'Bool (mk-bool-sort ctx)))
+  (Env vals funs sorts))

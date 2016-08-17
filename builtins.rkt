@@ -79,15 +79,6 @@
                    (v (get-context) (expr->_z3-ast x) (expr->_z3-ast y)))))
               (provide f/s))]))]))
 
-(define-syntax (define-builtin-sort stx)
-  (syntax-parse stx
-    [(_ T:id f)
-     (with-syntax ([T/s (add-smt-suffix #'T)])
-       #'(begin
-           (define (T/s)
-             (f (get-context)))
-           (provide T/s)))]))
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; from old `builtins.rkt`
@@ -110,8 +101,6 @@
   (foldl (flip fn) fst rst))
 
 ;; Builtin symbols
-(define-builtin-proc true mk-true 0)
-(define-builtin-proc false mk-false 0)
 (define-builtin-proc = mk-eq 2)
 (define-builtin-proc distinct mk-distinct *)
 (define-builtin-proc not mk-not 1)
@@ -140,13 +129,6 @@
 ;; Array operations
 (define-builtin-proc select mk-select 2)
 (define-builtin-proc store mk-store 3)
-
-
-;; Built-in sorts
-(define-builtin-sort Bool mk-bool-sort)
-(define-builtin-sort Int mk-int-sort)
-(define-builtin-sort Real mk-real-sort)
-;(define-builtin-sort Array (curryn 2 z3:mk-array-sort))
 
 ;; Apply
 (: @/s : Symbol Expr * → Z3:Ast)
