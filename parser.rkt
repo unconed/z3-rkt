@@ -28,28 +28,10 @@
         [else        (make-symbol (format "~a" s))]))
 (define-simple-macro (declare-sort T:id) (dynamic-declare-sort 'T))
 
-(: sort-expr->_z3-sort : Any → (U Z3:Sort Z3:Null))
-;; sort-exprs are sort ids, (_ id parameter*), or (id sort-expr*).
-;; PN: Only have simple sorts for now, which makes it just simple lookup
-(define (sort-expr->_z3-sort expr)
-  (match expr
-    [(? symbol? id)
-     (define s (get-sort id))
-     (if (z3-sort? s) s z3-null)]
-    [(? z3-sort? expr) expr]
-    [(? z3-null? expr) expr]
-    [_ (error 'sort-expr->_z3-sort "unexpected: ~a" expr)]))
-
-(: _z3-ast->expr : Z3:Ast → Any)
-;; Given a Z3 AST, convert it to an expression that can be parsed again into an AST,
-;; assuming the same context. This is the inverse of expr->_z3-ast above.
-(define (_z3-ast->expr ast)
-  (read (open-input-string (ast-to-string (get-context) ast))))
-
 (: make-uninterpreted
-   (case-> [String Null Any → Z3:Ast]
-           [String (Pairof Any (Listof Any)) Any → Z3:Func]
-           [String (Listof Any) Any → (U Z3:Ast Z3:Func)]))
+   (case-> [String Null Sort-Expr → Z3:Ast]
+           [String (Pairof Sort-Expr (Listof Sort-Expr)) Sort-Expr → Z3:Func]
+           [String (Listof Sort-Expr) Sort-Expr → (U Z3:Ast Z3:Func)]))
 ;; Make an uninterpreted function given arg sorts and return sort.
 (define (make-uninterpreted name argsorts retsort)
   (define cur-ctx (get-context))
@@ -63,9 +45,9 @@
                       (length argsorts))]))
 
 (: dynamic-declare-fun
-   (case-> [Symbol Null Any → Z3:Ast]
-           [Symbol (Pairof Any (Listof Any)) Any → Z3:Func]
-           [Symbol (Listof Any) Any → (U Z3:Ast Z3:Func)]))
+   (case-> [Symbol Null Sort-Expr → Z3:Ast]
+           [Symbol (Pairof Sort-Expr (Listof Sort-Expr)) Sort-Expr → Z3:Func]
+           [Symbol (Listof Sort-Expr) Sort-Expr → (U Z3:Ast Z3:Func)]))
 ;; Declare a new function. Each `D` is a sort-expr.
 (define (dynamic-declare-fun f-id doms rng)
   (cond
@@ -78,7 +60,7 @@
      (set-fun! f-id v)
      v]))
 
-(: dynamic-declare-const : Symbol Any → Z3:Ast)
+(: dynamic-declare-const : Symbol Sort-Expr → Z3:Ast)
 (define (dynamic-declare-const c-id rng) (dynamic-declare-fun c-id '() rng))
 
 (define-simple-macro (declare-fun f:id (D ...) R)

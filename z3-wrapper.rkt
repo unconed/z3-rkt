@@ -59,6 +59,7 @@
 
 (define-type Z3:Func (Expr * → Z3:Ast))
 (define-type Expr (U Z3:Ast Z3:App Real Symbol))
+(define-type Sort-Expr (U Z3:Sort Symbol))
 
 (require/typed/provide "z3-wrapper-untyped.rkt"
   [toggle-warning-messages! (Boolean → Void)]
@@ -250,6 +251,17 @@
   ;(displayln (format "Output: ~a ~a ~a" expr ast (z3:ast-to-string cur-ctx ast)))
   ast)
 
+(: sort-expr->_z3-sort : Sort-Expr → (U Z3:Sort Z3:Null))
+;; sort-exprs are sort ids, (_ id parameter*), or (id sort-expr*).
+;; PN: Only have simple sorts for now, which makes it just simple lookup
+(define (sort-expr->_z3-sort expr)
+  (match expr
+    [(? symbol? id)
+     (define s (get-sort id))
+     (if (z3-sort? s) s z3-null)]
+    [(? z3-sort? expr) expr]
+    [_ (error 'sort-expr->_z3-sort "unexpected: ~a" expr)]))
+
 (: mk-func : Z3:Func-Decl Symbol Natural → Z3:Func)
 ;; Make a 1st order Z3 function out of func-decl
 (define (mk-func f-decl name n)
@@ -279,22 +291,26 @@
   #:transparent
   #:mutable)
 
-(define-syntax (define-parameter/getter stx)
+(define-syntax (define-z3-context-parameter stx)
   (syntax-parse stx
     [(_ param:id (~literal :) T)
-     (with-syntax ([current-param (format-id stx "current-~a" #'param)]
-                   [get-param     (format-id stx     "get-~a" #'param)])
+     (with-syntax (;[current-param (format-id stx "current-~a" #'param)] hide direct access
+                   [get-param     (format-id stx     "get-~a" #'param)]
+                   [with-param    (format-id stx "   with-~a" #'param)])
        #'(begin
            (define current-param : (Parameterof (Option T)) (make-parameter #f))
            (define (get-param) : T
-             (define ans (current-param))
              (cond
-               [ans ans]
-               [else (error 'get-param "Expect ~a to have been parameterized" 'param)]))))]))
+               [(current-param) => values]
+               [else (error 'get-param "Expect ~a to have been parameterized through ~a"
+                            'param
+                            'with-param)]))
+           (define-syntax-rule (with-param t e (... ...))
+             (parameterize ([current-param t]) e (... ...)))))]))
 
-(define-parameter/getter context : Z3:Context)
-(define-parameter/getter solver  : Z3:Solver)
-(define-parameter/getter env     : Env)
+(define-z3-context-parameter context : Z3:Context)
+(define-z3-context-parameter solver  : Z3:Solver)
+(define-z3-context-parameter env     : Env)
 
 ;; A symbol table for sorts
 (: get-sort : Symbol → (Option Z3:Sort))
@@ -347,23 +363,22 @@
 ;;;;; Bookeeping forms
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-syntax-rule (with-fresh-managed-context (args ...) e ...)
+;; Run expression, parameterizing with fresh context, which is discarded at the end
+(define-syntax-rule (with-fresh-context (args ...) e ...)
   (let ()
     (define cfg (mk-config args ...))
     (define ctx (mk-context cfg))
     (define solver (mk-solver ctx))
+    (solver-inc-ref! solver)
     (begin0
-        (parameterize ([current-context ctx]
-                       [current-solver solver])
-          (solver-inc-ref! solver)
-          e ...)
+        (with-context ctx
+          (with-solver solver
+            e ...))
       (solver-dec-ref! solver)
       (del-context ctx)
       (del-config cfg))))
 
-(define-syntax-rule (with-init-env e ...)
-  (parameterize ([current-env (init-env)])
-    e ...))
+(define-syntax-rule (with-init-env e ...) (with-env (init-env) e ...))
 
 (define-syntax-rule (with-vals x->v e ...)
   (match-let ([(Env vals funs sorts) (get-env)])
@@ -371,8 +386,7 @@
       (for/fold ([vals* : (HashTable Symbol Z3:Ast) vals])
                 ([(x v) x->v])
         (hash-set vals* x v)))
-    (parameterize ([current-env (Env vals* funs sorts*)])
-      e ...)))
+    (with-env (Env vals* funs sorts*) e ...)))
 
 (define (init-env) : Env
   (define ctx (get-context))
