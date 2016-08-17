@@ -8,8 +8,10 @@
          racket/match
          (only-in racket/function curry)
          syntax/parse/define
+         "z3-wrapper.rkt"
+         "environment.rkt"
          "parser.rkt"
-         "z3-wrapper.rkt")
+         )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Utils (from old `utils.rkt`)
@@ -147,13 +149,13 @@
      #'(let ([cur-ctx (get-context)])
          (let ([x (mk-fresh-const cur-ctx
                                   (symbol->string 'x)
-                                  (assert (smt:internal:sort-expr->_z3-sort 't) z3-sort?))] ...)
+                                  (assert (sort-expr->_z3-sort 't) z3-sort?))] ...)
            (define new-vals
              (for/hasheq : (HashTable Symbol Z3:Ast) ([xᵢ (in-list '(x ...))]
                                                       [cᵢ (in-list (list x ...))])
                (values xᵢ (app-to-ast cur-ctx cᵢ))))
            (define-values (body patterns)
-             (with-vals new-vals
+             (with-extended-vals new-vals
                (values (expr->_z3-ast e) pats)))
            (mk-quant cur-ctx 0 (list x ...) patterns body)))]))
 
@@ -178,7 +180,7 @@
        (for/hasheq : (HashTable Symbol Z3:Ast) ([x xs] [c bounds])
          (values x (app-to-ast cur-ctx c))))
      (define-values (body patterns)
-       (with-vals new-vals
+       (with-extended-vals new-vals
          (values (expr->_z3-ast e) pats)))
      (mk-quant-const cur-ctx 0 bounds patterns body)]))
 

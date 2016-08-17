@@ -1,13 +1,17 @@
 #lang typed/racket/base
 
+(provide define-fun
+         define-const)
+
 (require (for-syntax racket/base
                      racket/syntax
                      syntax/parse
                      racket/pretty)
          racket/match
          syntax/parse/define
-         "parser.rkt"
          "z3-wrapper.rkt"
+         "environment.rkt"
+         "parser.rkt"
          "builtins.rkt")
 
 ;; Functions that are written in terms of the base functions in main.rkt and
@@ -40,7 +44,4 @@
        (smt:assert (∀/s ([x Tx] ...) (=/s (f x ...) e))))]))
 (define-simple-macro (define-const c:id T e) (define-fun c:id () T e))
 
-(provide
- (prefix-out
-  smt:
-  (combine-out define-fun define-const)))
+

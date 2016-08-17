@@ -6,13 +6,65 @@
                      racket/contract
                      racket/pretty)
          (prefix-in tr: (only-in typed/racket/base assert))
+         racket/set
          racket/match
          racket/syntax
          syntax/parse/define
          "z3-wrapper.rkt"
+         "environment.rkt"
          )
 (require/typed racket/syntax
   [format-symbol (String Any * → Symbol)])
+
+;; Given an expr, convert it to a Z3 AST. This is a really simple recursive descent parser.
+;; PN: This no longer is a parser. It only coerces some base values now
+(: expr->_z3-ast : Expr → Z3:Ast)
+(define (expr->_z3-ast e)
+  ;(displayln (format "IN: ~a" e))
+  (define cur-ctx (get-context))
+  (define ast
+    (let go ([e e])
+      (match e
+        ; Numerals
+        [(? exact-integer? n)
+         (mk-numeral cur-ctx (number->string n) (mk-int-sort cur-ctx))]
+        [(?  inexact-real? r)
+         (mk-numeral cur-ctx (number->string r) (mk-real-sort cur-ctx))]
+        ;; Delayed constant
+        [(? symbol? x) (get-val x)]
+        ; Anything else
+        [(? z3-app? e) (app-to-ast cur-ctx e)]
+        [(? z3-ast? e) e]
+        [_ (error 'expr->_z3-ast "unexpected: ~a" e)])))
+  ;(displayln (format "Output: ~a ~a ~a" expr ast (z3:ast-to-string cur-ctx ast)))
+  ast)
+
+(: sort-expr->_z3-sort : Sort-Expr → Z3:Sort)
+;; sort-exprs are sort ids, (_ id parameter*), or (id sort-expr*).
+;; PN: Only have simple sorts for now, which makes it just simple lookup
+(define (sort-expr->_z3-sort expr)
+  (match expr
+    [(? symbol? id) (get-sort id)]
+    [(? z3-sort? expr) expr]
+    [_ (error 'sort-expr->_z3-sort "unexpected: ~a" expr)]))
+
+(: mk-func : Z3:Func-Decl Symbol Natural → Z3:Func)
+;; Make a 1st order Z3 function out of func-decl
+(define (mk-func f-decl name n)
+  (λ xs
+    (define num-xs (length xs))
+    (cond [(= n num-xs)
+           (define cur-ctx (get-context))
+           (define args (map expr->_z3-ast xs))
+           #;(printf "applying ~a to ~a~n"
+                     (func-decl-to-string cur-ctx f-decl)
+                     (for/list : (Listof Sexp) ([arg args])
+                       (define arg-str (ast-to-string cur-ctx arg))
+                       (define sort (sort-to-string cur-ctx (z3-get-sort cur-ctx arg)))
+                       `(,arg-str : ,sort)))
+           (apply mk-app cur-ctx f-decl args)]
+          [else
+           (error name "expect ~a arguments, given ~a" n num-xs)])))
 
 (: dynamic-declare-sort : Symbol → Z3:Sort)
 ;; Declare a new sort.
@@ -79,14 +131,17 @@
     (make-uninterpreted "" 'args ...)))
 
 (: constr->_z3-constructor :
-   Symbol (Listof (List Symbol (U Symbol Z3:Sort))) → Z3:Constructor)
-(define (constr->_z3-constructor k field-list)
+   (Setof Symbol) Symbol (Listof (List Symbol (U Symbol Z3:Sort))) → Z3:Constructor)
+(define (constr->_z3-constructor recursive-sort-names k field-list)
   (define names-sorts-refs
     (for/list : (Listof (List Z3:Symbol (U Z3:Sort Z3:Null) Nonnegative-Fixnum))
               ([field : (List Symbol (U Symbol Z3:Sort)) field-list])
       (match-define (list x t) field)
       (define nameᵢ (make-symbol x))
-      (define sortᵢ (sort-expr->_z3-sort t))
+      (define sortᵢ
+        (if (set-member? recursive-sort-names t)
+            z3-null
+            (sort-expr->_z3-sort t)))
       (define refᵢ 0)
       (list nameᵢ sortᵢ refᵢ)))
   (mk-constructor (get-context)
@@ -107,8 +162,8 @@
   (define constructors
     (for/list : (Listof Z3:Constructor) ([vr vrs])
       (match vr
-        [(cons k flds) (constr->_z3-constructor k flds)]
-        [(? symbol? k) (constr->_z3-constructor k '())])))
+        [(cons k flds) (constr->_z3-constructor {seteq T-id} k flds)]
+        [(? symbol? k) (constr->_z3-constructor {seteq T-id} k '())])))
 
   ;; define datatype
   (define T (mk-datatype cur-ctx (make-symbol T-id) constructors))
@@ -189,7 +244,7 @@
            #,@(for/list ([con-K      (in-list con-Ks)]
                          [K          (in-list Ks)]
                          [field-list (in-list field-lists)])
-                #`(define #,con-K (constr->_z3-constructor '#,K '#,field-list)))
+                #`(define #,con-K (constr->_z3-constructor {seteq 'T} '#,K '#,field-list)))
            
            ;; define datatype
            (define T (mk-datatype cur-ctx (make-symbol 'T) (list #,@con-Ks)))
@@ -239,25 +294,6 @@
 (define (check-sat)
   (solver-check (get-context) (get-solver)))
 
-(: reset! : → Void)
-(define (reset!)
-  (solver-reset! (get-context) (get-solver)))
-
-(: push! : → Void)
-(define (push!)
-  (solver-push! (get-context) (get-solver)))
-
-(: pop! ([] [Nonnegative-Fixnum] . ->* . Void))
-(define (pop! [num-backtracks 1])
-  (solver-pop! (get-context) (get-solver) num-backtracks))
-
-(define-syntax-rule (with-local-push-pop e ...)
-  (begin0
-      (let ()
-        (push!)
-        e ...)
-    (pop!)))
-
 (: get-model : → Z3:Model)
 (define (get-model)
   (solver-get-model (get-context) (get-solver)))
@@ -266,25 +302,21 @@
 ;; push, pop, and a way to navigate a model.
 
 (provide
- (prefix-out
-  smt:
-  (combine-out
-   declare-datatypes
-   declare-datatype dynamic-declare-datatype
-   declare-sort dynamic-declare-sort
-   declare-const dynamic-declare-const
-   declare-fun dynamic-declare-fun
-   make-fun
-   make-fun/vector
-   make-fun/list
-   assert!
-   check-sat
-   get-model
-   push!
-   pop!
-   with-local-push-pop))
+ expr->_z3-ast
+ sort-expr->_z3-sort
+ (combine-out ; remove smt: for now
+  declare-datatypes
+  declare-datatype dynamic-declare-datatype
+  declare-sort dynamic-declare-sort
+  declare-const dynamic-declare-const
+  declare-fun dynamic-declare-fun
+  ;make-fun
+  ;make-fun/vector
+  ;make-fun/list
+  assert!
+  check-sat
+  get-model)
  ; XXX move these to a submodule once Racket 5.3 is released
  (prefix-out smt:internal:
              (combine-out
-              make-symbol
-              sort-expr->_z3-sort)))
+              make-symbol)))
