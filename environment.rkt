@@ -152,13 +152,15 @@
   (solver-reset! ctx (get-solver)))
 
 (define-syntax-rule (with-local-push-pop e ...)
-  (let ([env (get-env)])
+  (match-let ([(Env vals₀ funs₀ sorts₀) (get-env)]
+              [ctx (get-context)]
+              [solver (get-solver)])
     (begin0
         (let ()
-          (push!)
+          (solver-push! ctx solver)
           e ...)
-      (pop! (get-context) (get-solver) 1)
-      (define env (get-env))
-      (set-Env-vals! env (Env-vals env))
-      (set-Env-funs! env (Env-funs env))
-      (set-Env-sorts! env (Env-sorts env)))))
+      (solver-pop! (get-context) (get-solver) 1)
+      (let ([env (get-env)])
+        (set-Env-vals!  env vals₀)
+        (set-Env-funs!  env funs₀)
+        (set-Env-sorts! env sorts₀)))))

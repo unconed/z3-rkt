@@ -175,7 +175,7 @@
        (for/list : (Listof Z3:App) ([x xs] [t ts])
          (mk-fresh-const cur-ctx
                          (symbol->string x)
-                         (assert (smt:internal:sort-expr->_z3-sort t) z3-sort?))))
+                         (assert (sort-expr->_z3-sort t) z3-sort?))))
      (define new-vals
        (for/hasheq : (HashTable Symbol Z3:Ast) ([x xs] [c bounds])
          (values x (app-to-ast cur-ctx c))))
