@@ -19,10 +19,11 @@ Installing
 ----------
 
 `z3-rkt` has been tested with Z3 4.4.1, which you can download and build from [https://github.com/Z3Prover/z3](https://github.com/Z3Prover/z3).
-Depending on your environment being Windows, Mac, or Linux, you'll need to copy or create a symlink to `z3.dll`, `libz3.so` or `libz3.dylib` in the `ffi/` directory.
+
+After installing, set environment variable `Z3_LIB` to the directory containing the Z3 library.
+The file is named `z3.dll`, `libz3.so` or `libz3.dylib`, depending on your system being Windows, Mac, or Linux, respectively.
 
 Tutorial is in [`tutorial.md`](https://github.com/philnguyen/z3-rkt/blob/master/tutorial.md)
-
 
 Structure
 ----------

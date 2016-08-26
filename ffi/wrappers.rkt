@@ -9,15 +9,22 @@
          racket/runtime-path)
 (provide (struct-out list-instance))
 
-(define-runtime-path libz3-path
-  (case (system-type 'os)
-    [(unix) "libz3.so"]
-    [(windows) "z3.dll"]
-    [(macosx) "libz3.dylib"]))
-
 (define libz3
-  (let ([libz3-without-suffix (path-replace-extension libz3-path "")])
-    (ffi-lib libz3-without-suffix)))
+  (let ([lib-name (case (system-type 'os)
+                    [(unix) "libz3.so"]
+                    [(windows) "z3.dll"]
+                    [(macosx) "libz3.dylib"])])
+    (define Z3_LIB "Z3_LIB")
+    (define libz3-path (getenv Z3_LIB))
+    (cond
+      [libz3-path
+       (define libz3-without-suffix (path-replace-extension (build-path libz3-path lib-name) ""))
+       (ffi-lib libz3-without-suffix)]
+      [else
+       (error 'z3-rkt
+              "Cannot locate Z3 libary. Please set ${~a} to the directory containing ~a"
+              Z3_LIB
+              lib-name)])))
 
 (define-cpointer-type _z3-config)  (provide z3-config?)
 (define-cpointer-type _z3-context) (provide z3-context?)
