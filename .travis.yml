@@ -23,7 +23,7 @@ env:
     #
     # The RELEASE snapshot is only available during the release process.
     - RACKET_VERSION=HEAD
-    - RACKET_VERSION=RELEASE
+    # - RACKET_VERSION=RELEASE
 
 before_install:
   - git clone https://github.com/greghendershott/travis-racket.git
