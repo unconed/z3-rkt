@@ -1,7 +1,7 @@
 `z3-rkt`: Racket bindings for Z3
 ================================
 
-This package provides an implementation of Z3 in Typed Racket.
+This package provides an implementation of Z3 in Racket.
 Although I develop this package specifically for use in my symbolic execution,
 it should be usable for general-purpose Racket SMT integration.
 I originally forked from [https://github.com/sid0/z3.rkt](https://github.com/sid0/z3.rkt), then:
@@ -12,12 +12,6 @@ I originally forked from [https://github.com/sid0/z3.rkt](https://github.com/sid
 * ditched all hacky sort-instance functions (will generalize it later)
 
 Old exapmles that used sort instances are not working for now.
-
-I only use Typed Racket to prevent simple mistakes in implementing the API.
-The embedded SMT language itself is untyped because expressions and commands
-can be dynamically generated.
-All SMT expressions have type `Z3:Ast`.
-
 
 Installing
 ----------
