@@ -167,6 +167,9 @@
         (set-fun! field-name ac))
       (list K p acs)))
   
+  ;; TODO: make sure this is safe
+  (for ([c constructors]) (del-constructor cur-ctx c))
+  
   (values T variants))
 
 (begin-for-syntax
@@ -248,6 +251,7 @@
                                     (mk-func #,p '#,p 1)
                                     #,@(for/list ([acc accs])
                                          #`(mk-func #,acc '#,acc 1)))))
+                       (del-constructor cur-ctx #,con-K) ; TODO make sure it's safe
                        (set-fun! '#,K #,K)
                        (set-fun! '#,p #,p)
                        #,@(for/list ([acc accs])
