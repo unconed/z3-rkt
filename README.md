@@ -28,11 +28,12 @@ site](http://research.microsoft.com/en-us/um/redmond/projects/z3/download.html).
 We work on Windows, Mac and Linux. You need to copy or create a symlink to `z3.dll`,
 `libz3.so` or `libz3.dylib` in the `ffi/` directory.
 
+
 Structure
 ----------
 
-* `ffi/` defines low-level Z3 API
-* `smt/` defines the high-level Z3 API, close to the SMT2 language.
+* [`ffi/`](https://github.com/philnguyen/z3.rkt/tree/master/ffi) defines low-level Z3 API
+* [`smt/`](https://github.com/philnguyen/z3.rkt/tree/master/smt) defines the high-level Z3 API, close to the SMT2 language.
   This is the reccommended way to interact with Z3.
   
 
