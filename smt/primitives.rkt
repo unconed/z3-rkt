@@ -57,27 +57,11 @@
               (provide f/s))]
          [(~literal lassoc)
           #'(begin
-              (define f/s
-                (lassoc
-                 (λ ([x : Expr] [y : Expr])
-                   ;; TODO just debugging
-                   #;(printf "Applying ~a to ~a, ~a~n"
-                           'f/s
-                           (ast-to-string (get-context) (expr->_z3-ast x))
-                           (ast-to-string (get-context) (expr->_z3-ast y)))
-                   (v (get-context) (expr->_z3-ast x) (expr->_z3-ast y)))))
+              (define f/s (lassoc (λ (x y) (v (get-context) x y))))
               (provide f/s))]
          [(~literal rassoc)
           #'(begin
-              (define f/s
-                (rassoc
-                 (λ ([x : Expr] [y : Expr])
-                   ;; TODO just debugging
-                   #;(printf "Applying ~a to ~a, ~a~n"
-                           'f/s
-                           (ast-to-string (get-context) (expr->_z3-ast x))
-                           (ast-to-string (get-context) (expr->_z3-ast y)))
-                   (v (get-context) (expr->_z3-ast x) (expr->_z3-ast y)))))
+              (define f/s (rassoc (λ (x y) (v (get-context) x y))))
               (provide f/s))]))]))
 
 
@@ -85,21 +69,21 @@
 ;;;;; from old `builtins.rkt`
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(: rassoc (∀ (X) (X X → X) → X * → X))
+(: rassoc : (Z3:Ast Z3:Ast → Z3:Ast) → Expr Expr * → Z3:Ast)
 ;; Wraps a binary function so that arguments are processed
 ;; in a right-associative manner.
 (define ((rassoc fn) . args)
-  (match-define-values (args* (list argn)) (split-at-right args 1))
-  (foldr fn argn args*))
+  (let loop ([args : (Listof Expr) args])
+    (match args
+      [(list arg) (expr->_z3-ast arg)]
+      [(cons arg args*)
+       (fn (expr->_z3-ast arg) (loop args*))])))
 
-(: lassoc (∀ (X) (X X → X) → X X * → X))
-;; Wraps a binary function so that arguments are processed
-;; in a left-associative manner. Note that foldl calls functions
-;; in their reverse order, so we flip the arguments to fix that.
+(: lassoc : (Z3:Ast Z3:Ast → Z3:Ast) → Expr Expr * → Z3:Ast)
+;; Wraps a binary function so that arguments are processed in a left-associative manner.
 (define ((lassoc fn) fst . rst)
-  (: flip : (X X → X) → X X → X)
-  (define ((flip f) x y) (f y x))
-  (foldl (flip fn) fst rst))
+  (for/fold ([acc : Z3:Ast (expr->_z3-ast fst)]) ([x rst])
+    (fn acc (expr->_z3-ast x))))
 
 ;; Builtin symbols
 (define-builtin-proc = mk-eq 2)
@@ -122,6 +106,7 @@
 (define-builtin-proc rem mk-rem lassoc)
 (define-builtin-proc ^ mk-power 2)
 (define-builtin-proc is-int mk-is-int 1)
+(define-builtin-proc to-real mk-int2real 1)
 ;; XXX Comparisons are chainable (i.e. (< a b c) == (and (< a b) (< b c)))
 (define-builtin-proc < mk-lt 2)
 (define-builtin-proc <= mk-le 2)

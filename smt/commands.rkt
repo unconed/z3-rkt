@@ -41,6 +41,7 @@
          syntax/parse/define
          "../ffi/main.rkt"
          "private.rkt"
+         "primitives.rkt"
          )
 (require/typed racket/syntax
   [format-symbol (String Any * → Symbol)])
@@ -305,8 +306,8 @@
   (syntax-parse stx
     [(_ c:id () T e)
      #'(begin
-       (smt:declare-const c () T)
-       (smt:assert (=/s c e)))]
+       (declare-const c T)
+       (assert! (=/s c e)))]
     [(_ f:id ([x:id Tx] ...) T e)
      ;; FIXME: This can cause exponential blowup.
      ;; But I can't figure out how to use `macro-finder` from C API for now

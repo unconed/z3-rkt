@@ -65,6 +65,7 @@
   [mk-rem (Z3:Context Z3:Ast Z3:Ast → Z3:Ast)]
   [mk-power (Z3:Context Z3:Ast Z3:Ast → Z3:Ast)]
   [mk-is-int (Z3:Context Z3:Ast → Z3:Ast)]
+  [mk-int2real (Z3:Context Z3:Ast → Z3:Ast)]
 
   ;; Comparisons
   [mk-lt (Z3:Context Z3:Ast Z3:Ast → Z3:Ast)]
