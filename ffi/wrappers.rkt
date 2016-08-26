@@ -70,6 +70,7 @@
 (define-cpointer-type _z3-pattern    ) (provide z3-pattern?)
 (define-cpointer-type _z3-model      ) (provide z3-model?)
 (define-cpointer-type _z3-stats      ) (provide z3-stats?)
+(define-cpointer-type _z3-ast-vector ) (provide z3-ast-vector?)
 (define z3-null #f)
 (define z3-null? not)
 (provide z3-null z3-null?)
@@ -120,11 +121,12 @@
 ; TODO: solver-get-num-scopes
 (defz3 solver-assert! : _z3-context _z3-solver _z3-ast -> _void)
 (defz3 solver-assert-and-track! : _z3-context _z3-solver _z3-ast _z3-ast -> _void)
-; TODO: solver-get-assertions
+(defz3 solver-get-assertions : _z3-context _z3-solver -> _z3-ast-vector)
 (defz3 solver-check : _z3-context _z3-solver -> _z3-lbool)
 ; TODO: solver-check-assumptions
 (defz3 solver-get-model : _z3-context _z3-solver -> _z3-model)
-; TODO: solver-get-proof, solver-get-unsat-core
+(defz3 solver-get-proof : _z3-context _z3-solver -> _z3-ast)
+(defz3 solver-get-unsat-core : _z3-context _z3-solver -> _z3-ast-vector)
 (defz3 solver-get-reason-unknown : _z3-context _z3-solver -> _string)
 (defz3 solver-get-statistics : _z3-context _z3-solver -> _z3-stats)
 (defz3 solver-to-string : _z3-context _z3-solver -> _string)
@@ -319,3 +321,15 @@
 (defz3 stats-is-double? : _z3-context _z3-stats _uint -> _bool)
 (defz3 stats-get-uint-value : _z3-context _z3-stats _uint -> _uint)
 (defz3 stats-get-double-value : _z3-context _z3-stats _uint -> _double)
+
+;; AST Vectors
+(defz3 mk-ast-vector : _z3-context -> _z3-ast-vector)
+(defz3 ast-vector-inc-ref! : _z3-context _z3-ast-vector -> _void)
+(defz3 ast-vector-dec-ref! : _z3-context _z3-ast-vector -> _void)
+(defz3 ast-vector-size : _z3-context _z3-ast-vector -> _uint)
+(defz3 ast-vector-get : _z3-context _z3-ast-vector _uint -> _z3-ast)
+(defz3 ast-vector-set! : _z3-context _z3-ast-vector _uint _z3-ast -> _void)
+(defz3 ast-vector-resize! : _z3-context _z3-ast-vector _uint -> _void)
+(defz3 ast-vector-push! : _z3-context _z3-ast-vector _z3-ast -> _void)
+(defz3 ast-vector-translate : _z3-context _z3-ast-vector _z3-context -> _z3-ast-vector)
+(defz3 ast-vector-to-string : _z3-context _z3-ast-vector -> _string)

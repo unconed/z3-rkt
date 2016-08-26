@@ -33,19 +33,12 @@
                   (parameterize ([param x]) e (... ...)))))]))
      (define-z3-parameter context : Z3:Context)
      (define-z3-parameter solver  : Z3:Solver)
-     (define-z3-parameter env     : Env)
-     (define-z3-parameter log     : (Boxof (Listof String))))
+     (define-z3-parameter env     : Env))
   
   (define get-context raw:get-context)
   (define get-solver  raw:get-solver)
   (define get-env     raw:get-env)
   
-  (define (get-log) (reverse (unbox (raw:get-log))))
-  (define (log! [s : String])
-    (define log (raw:get-log))
-    (set-box! log (cons s (unbox log)))
-    #;(printf "~a~n" s))
-
   ;; Initializing environment does not require resetting anything else
   (define-syntax-rule (with-new-environment e ...)
     (with-env (init-env (get-context))
@@ -65,11 +58,10 @@
       (define cfg (mk-config config-args ...))
       (define ctx (mk-context cfg))
       ;(printf "~n")
-      (begin0 (parameterize ([log (box '())])
-                (with-context ctx
-                  (with-new-solver
-                    (with-new-environment
-                      e ...))))
+      (begin0 (with-context ctx
+                (with-new-solver
+                  (with-new-environment
+                    e ...)))
         ;(printf "~n")
         (del-context ctx)
         (del-config cfg))))
@@ -81,8 +73,7 @@
       (solver-inc-ref! ctx slvr)
       (context ctx)
       (solver slvr)
-      (env nv)
-      (log ((inst box (Listof String)) '()))))
+      (env nv)))
 
   (define-syntax-rule (destroy-global-context!)
     (begin ; TODO: no del-config ...
@@ -91,8 +82,7 @@
       (del-context ctx)
       (context #f)
       (solver #f)
-      (env #f)
-      (log #f)))
+      (env #f)))
 
   (define-syntax-rule (with-extended-vals new-vals e ...)
     (let* ([env (get-env)]
@@ -188,10 +178,8 @@
     (begin0
         (let ()
           (solver-push! ctx solver)
-          (log! "(push)")
           e ...)
       (solver-pop! (get-context) (get-solver) 1)
-      (log! "(pop)")
       (let ([env (get-env)])
         (set-Env-vals!  env vals₀)
         (set-Env-funs!  env funs₀)
@@ -246,4 +234,3 @@
            (apply mk-app cur-ctx f-decl args)]
           [else
            (error name "expect ~a arguments, given ~a" n num-xs)])))
-

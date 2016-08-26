@@ -27,8 +27,11 @@
   [solver-reset! (Z3:Context Z3:Solver → Void)]
   [solver-assert! (Z3:Context Z3:Solver Z3:Ast → Void)]
   [solver-assert-and-track! (Z3:Context Z3:Solver Z3:Ast Z3:Ast → Void)]
+  [solver-get-assertions (Z3:Context Z3:Solver → Z3:Ast-Vector)]
   [solver-check (Z3:Context Z3:Solver → Z3:LBool)]
   [solver-get-model (Z3:Context Z3:Solver → Z3:Model)]
+  [solver-get-proof (Z3:Context Z3:Solver → Z3:Ast)]
+  [solver-get-unsat-core (Z3:Context Z3:Solver → Z3:Ast-Vector)]
   [solver-get-reason-unknown (Z3:Context Z3:Solver → String)]
   [solver-get-statistics (Z3:Context Z3:Solver → Z3:Stats)]
   [solver-to-string (Z3:Context Z3:Solver → String)]
@@ -145,6 +148,18 @@
   [stats-is-double? (Z3:Context Z3:Stats Nonnegative-Fixnum → Boolean)]
   [stats-get-uint-value (Z3:Context Z3:Stats Nonnegative-Fixnum → Nonnegative-Fixnum)]
   [stats-get-double-value (Z3:Context Z3:Stats Nonnegative-Fixnum → Inexact-Real)]
+
+  ;; AST Vectors
+  [mk-ast-vector (Z3:Context → Z3:Ast-Vector)]
+  [ast-vector-inc-ref! (Z3:Context Z3:Ast-Vector → Void)]
+  [ast-vector-dec-ref! (Z3:Context Z3:Ast-Vector → Void)]
+  [ast-vector-size (Z3:Context Z3:Ast-Vector → Nonnegative-Fixnum)]
+  [ast-vector-get (Z3:Context Z3:Ast-Vector Nonnegative-Fixnum → Z3:Ast)]
+  [ast-vector-set! (Z3:Context Z3:Ast-Vector Nonnegative-Fixnum Z3:Ast → Void)]
+  [ast-vector-resize! (Z3:Context Z3:Ast-Vector Nonnegative-Fixnum → Void)]
+  [ast-vector-push! (Z3:Context Z3:Ast-Vector Z3:Ast → Void)]
+  [ast-vector-translate (Z3:Context Z3:Ast-Vector Z3:Context → Z3:Ast-Vector)]
+  [ast-vector-to-string (Z3:Context Z3:Ast-Vector → String)]
   )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -8,7 +8,6 @@
  get-val
  get-fun
  get-sort
- get-log
  
  declare-datatypes
  declare-datatype
@@ -24,6 +23,8 @@
  check-sat/model
  get-stats
  pattern-of
+
+ print-current-assertions
 
  define-fun
  define-const
@@ -82,7 +83,6 @@
            [Symbol (Listof Sort-Expr) Sort-Expr → (U Z3:Ast Z3:Func)]))
 ;; Declare a new function. Each `D` is a sort-expr.
 (define (dynamic-declare-fun f-id doms rng)
-  ;(log! (format "(declare-fun ~a ~a ~a)" f-id doms rng))
   (cond
     [(null? doms)
      (define v (make-uninterpreted (symbol->string f-id) '() rng))
@@ -262,9 +262,7 @@
 
 (: assert! : Expr → Void)
 (define (assert! e)
-  (define ast (expr->_z3-ast e))
-  ;(log! (format "(assert ~a)" (ast-to-string (get-context) ast)))
-  (solver-assert! (get-context) (get-solver) ast))
+  (solver-assert! (get-context) (get-solver) (expr->_z3-ast e)))
 
 (: check-sat : → Z3:Sat-LBool)
 (define (check-sat)
@@ -301,6 +299,13 @@
                    (stats-get-double-value ctx stats i)]))
           (values k v)))
     (stats-dec-ref! ctx stats)))
+
+(: print-current-assertions : → Void)
+(define (print-current-assertions)
+  (define ctx (get-context))
+  (define assertions (solver-get-assertions ctx (get-solver)))
+  (for ([i (ast-vector-size ctx assertions)])
+    (printf "~a~n" (ast-to-string ctx (ast-vector-get ctx assertions i)))))
 
 
 ;; Functions that are written in terms of the base functions in main.rkt and
