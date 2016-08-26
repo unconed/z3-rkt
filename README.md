@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/philnguyen/z3-rkt.svg?branch=master)](https://travis-ci.org/philnguyen/z3-rkt)
+
 `z3-rkt`: Racket bindings for Z3
 ================================
 
