@@ -21,7 +21,7 @@
  dynamic-declare-fun
  assert!
  check-sat
- get-model
+ check-sat/model
  get-stats
  pattern-of
 
@@ -269,9 +269,12 @@
     [(false) 'unsat]
     [(undef) 'unknown]))
 
-(: get-model : → Z3:Model)
-(define (get-model)
-  (solver-get-model (get-context) (get-solver)))
+(: check-sat/model : → (U Z3:Model 'unsat 'unknown))
+(define (check-sat/model)
+  (case (solver-check (get-context) (get-solver))
+    [(true) (solver-get-model (get-context) (get-solver))]
+    [(false) 'unsat]
+    [(undef) 'unknown]))
 
 (: pattern-of : Z3:Ast Z3:Ast * → Z3:Pattern)
 (define (pattern-of ast . asts)
