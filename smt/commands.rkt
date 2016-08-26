@@ -1,71 +1,38 @@
 #lang typed/racket/base
 
+(provide
+ with-new-context
+ declare-datatypes
+ declare-datatype
+ dynamic-declare-datatype
+ declare-sort
+ dynamic-declare-sort
+ declare-const
+ dynamic-declare-const
+ declare-fun
+ dynamic-declare-fun
+ assert!
+ check-sat
+ get-model
+ get-stats
+ define-fun
+ define-const)
+
 (require (for-syntax racket/base
                      racket/syntax
                      syntax/parse
                      racket/contract
                      racket/pretty)
-         (prefix-in tr: (only-in typed/racket/base assert))
          racket/set
          racket/match
          racket/syntax
          racket/string
          syntax/parse/define
-         "z3-wrapper.rkt"
-         "environment.rkt"
+         "../ffi/main.rkt"
+         "private.rkt"
          )
 (require/typed racket/syntax
   [format-symbol (String Any * → Symbol)])
-
-;; Given an expr, convert it to a Z3 AST. This is a really simple recursive descent parser.
-;; PN: This no longer is a parser. It only coerces some base values now
-(: expr->_z3-ast : Expr → Z3:Ast)
-(define (expr->_z3-ast e)
-  ;(displayln (format "IN: ~a" e))
-  (define cur-ctx (get-context))
-  (define ast
-    (let go ([e e])
-      (match e
-        ; Numerals
-        [(? exact-integer? n)
-         (mk-numeral cur-ctx (number->string n) (mk-int-sort cur-ctx))]
-        [(?  inexact-real? r)
-         (mk-numeral cur-ctx (number->string r) (mk-real-sort cur-ctx))]
-        ;; Delayed constant
-        [(? symbol? x) (get-val x)]
-        ; Anything else
-        [(? z3-app? e) (app-to-ast cur-ctx e)]
-        [(? z3-ast? e) e]
-        [_ (error 'expr->_z3-ast "unexpected: ~a" e)])))
-  ;(displayln (format "Output: ~a ~a ~a" expr ast (z3:ast-to-string cur-ctx ast)))
-  ast)
-
-(: sort-expr->_z3-sort : Sort-Expr → Z3:Sort)
-;; sort-exprs are sort ids, (_ id parameter*), or (id sort-expr*).
-;; PN: Only have simple sorts for now, which makes it just simple lookup
-(define (sort-expr->_z3-sort expr)
-  (match expr
-    [(? symbol? id) (get-sort id)]
-    [(? z3-sort? expr) expr]
-    [_ (error 'sort-expr->_z3-sort "unexpected: ~a" expr)]))
-
-(: mk-func : Z3:Func-Decl Symbol Natural → Z3:Func)
-;; Make a 1st order Z3 function out of func-decl
-(define (mk-func f-decl name n)
-  (λ xs
-    (define num-xs (length xs))
-    (cond [(= n num-xs)
-           (define cur-ctx (get-context))
-           (define args (map expr->_z3-ast xs))
-           #;(printf "applying ~a to ~a~n"
-                     (func-decl-to-string cur-ctx f-decl)
-                     (for/list : (Listof Sexp) ([arg args])
-                       (define arg-str (ast-to-string cur-ctx arg))
-                       (define sort (sort-to-string cur-ctx (z3-get-sort cur-ctx arg)))
-                       `(,arg-str : ,sort)))
-           (apply mk-app cur-ctx f-decl args)]
-          [else
-           (error name "expect ~a arguments, given ~a" n num-xs)])))
 
 (: dynamic-declare-sort : Symbol → Z3:Sort)
 ;; Declare a new sort.
@@ -120,17 +87,6 @@
 (define-simple-macro (declare-fun f:id (D ...) R)
   (define f (dynamic-declare-fun 'f '(D ...) 'R)))
 (define-simple-macro (declare-const c:id T) (declare-fun c () T))
-
-(define-syntax-rule (make-fun args ...)
-  (make-uninterpreted "" 'args ...))
-
-(define-syntax-rule (make-fun/vector n args ...)
-  (for/vector : (Vectorof (U Z3:App Z3:Func)) ([i (in-range 0 n)])
-    (make-uninterpreted "" 'args ...)))
-
-(define-syntax-rule (make-fun/list n args ...)
-  (for/list : (Listof (U Z3:App Z3:Func)) ([i (in-range 0 n)])
-    (make-uninterpreted "" 'args ...)))
 
 (: constr->_z3-constructor :
    (Setof Symbol) Symbol (Listof (List Symbol (U Symbol Z3:Sort))) → Z3:Constructor)
@@ -321,26 +277,33 @@
           (values k v)))
     (stats-dec-ref! ctx stats)))
 
-;; XXX need to implement a function to get all models. To do that we need
-;; push, pop, and a way to navigate a model.
 
-(provide
- expr->_z3-ast
- sort-expr->_z3-sort
- (combine-out ; remove smt: for now
-  declare-datatypes
-  declare-datatype dynamic-declare-datatype
-  declare-sort dynamic-declare-sort
-  declare-const dynamic-declare-const
-  declare-fun dynamic-declare-fun
-  ;make-fun
-  ;make-fun/vector
-  ;make-fun/list
-  assert!
-  check-sat
-  get-model
-  get-stats)
- ; XXX move these to a submodule once Racket 5.3 is released
- (prefix-out smt:internal:
-             (combine-out
-              make-symbol)))
+;; Functions that are written in terms of the base functions in main.rkt and
+;; builtins.rkt.
+
+;; Define a function using universal quantifiers as a sort of macro.
+;; Note that defining recursive functions is possible but highly
+;; recommended against.
+(define-syntax (define-fun stx)
+  (syntax-parse stx
+    [(_ c:id () T e)
+     #'(begin
+       (smt:declare-const c () T)
+       (smt:assert (=/s c e)))]
+    [(_ f:id ([x:id Tx] ...) T e)
+     ;; FIXME: This can cause exponential blowup.
+     ;; But I can't figure out how to use `macro-finder` from C API for now
+     (define n (length (syntax->list #'(x ...))))
+     #`(begin
+         (define f : Z3:Func
+           (let ([m : (HashTable (Listof Expr) Z3:Ast) (make-hash)])
+             (match-lambda*
+               [(and xs (list x ...))
+                (hash-ref! m xs (λ () e))]
+               [xs
+                (error 'f "wrong arity. Expect ~a, given ~a arguments" #,n (length xs))])))
+         (set-fun! 'f f))
+     #;#'(begin
+       (smt:declare-fun f (Tx ...) T)
+       (smt:assert (∀/s ([x Tx] ...) (=/s (f x ...) e))))]))
+(define-simple-macro (define-const c:id T e) (define-fun c:id () T e))

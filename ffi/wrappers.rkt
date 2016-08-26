@@ -1,7 +1,5 @@
 #lang racket/base
 
-;; This module defines (untyped) interface between Racket and Z3's C API
-
 (require (for-syntax racket/base
                      racket/syntax
                      syntax/parse)

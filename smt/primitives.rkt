@@ -8,9 +8,8 @@
          racket/match
          (only-in racket/function curry)
          syntax/parse/define
-         "z3-wrapper.rkt"
-         "environment.rkt"
-         "parser.rkt"
+         "../ffi/main.rkt"
+         "private.rkt"
          )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -134,7 +133,12 @@
 
 ;; Apply
 (: @/s : Symbol Expr * → Z3:Ast)
-(define (@/s f . xs) (apply (get-fun f) xs))
+(define (@/s f . xs)
+  #;(printf "@/s ~a ~a~n"
+          f
+          (for/list : (Listof Any) ([x xs])
+            (ast-to-string (get-context) (expr->_z3-ast x))))
+  (apply (get-fun f) xs))
 (provide @/s)
 
 (define-syntax hash-set*

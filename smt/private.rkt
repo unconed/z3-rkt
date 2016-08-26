@@ -9,7 +9,7 @@
                      syntax/parse)
          racket/match
          racket/splicing
-         "z3-wrapper.rkt")
+         "../ffi/main.rkt")
 
 
 (struct Env ([vals  : (HashTable Symbol Z3:Ast)]
@@ -22,30 +22,37 @@
     ((define-syntax (define-z3-parameter stx)
        (syntax-parse stx
          [(_ param:id (~literal :) T)
-          (with-syntax ([get-param  (format-id stx "get-~a" (syntax-e #'param))]
+          (with-syntax ([get-param  (format-id stx "raw:get-~a" (syntax-e #'param))]
                         [with-param (format-id stx "with-~a" (syntax-e #'param))])
             #'(begin
-                (define current-param : (Parameterof (Option T)) (make-parameter #f))
+                (define param : (Parameterof (Option T)) (make-parameter #f))
                 (define (get-param) : T
-                  (cond [(current-param) => values]
+                  (cond [(param) => values]
                         [else (error 'param "parameter not set")]))
                 (define-syntax-rule (with-param x e (... ...))
-                  (parameterize ([current-param x]) e (... ...)))))]))
+                  (parameterize ([param x]) e (... ...)))))]))
      (define-z3-parameter context : Z3:Context)
      (define-z3-parameter solver  : Z3:Solver)
-     (define-z3-parameter env     : Env))
+     (define-z3-parameter env     : Env)
+     (define-z3-parameter log     : (Boxof (Listof String))))
   
-  (define get-context get-context)
-  (define get-solver  get-solver)
-  (define get-env     get-env)
+  (define get-context raw:get-context)
+  (define get-solver  raw:get-solver)
+  (define get-env     raw:get-env)
   
+  (define (get-log) (reverse (unbox (raw:get-log))))
+  (define (log! [s : String])
+    (define log (raw:get-log))
+    (set-box! log (cons s (unbox log)))
+    #;(printf "~a~n" s))
+
   ;; Initializing environment does not require resetting anything else
-  (define-syntax-rule (with-fresh-environment e ...)
+  (define-syntax-rule (with-new-environment e ...)
     (with-env (init-env (get-context))
       e ...))
 
   ;; Initializing solver does not require resetting anything else
-  (define-syntax-rule (with-fresh-solver e ...)
+  (define-syntax-rule (with-new-solver e ...)
     (let* ([ctx (get-context)]
            [solver (mk-solver ctx)])
       (solver-inc-ref! ctx solver)
@@ -53,14 +60,17 @@
         (solver-dec-ref! ctx solver))))
 
   ;; Initializing a context requires resetting solver and environments
-  (define-syntax-rule (with-fresh-context (config-args ...) e ...)
+  (define-syntax-rule (with-new-context (config-args ...) e ...)
     (let ()
       (define cfg (mk-config config-args ...))
       (define ctx (mk-context cfg))
-      (begin0 (with-context ctx
-                (with-fresh-solver
-                  (with-fresh-environment
-                    e ...)))
+      ;(printf "~n")
+      (begin0 (parameterize ([log (box '())])
+                (with-context ctx
+                  (with-new-solver
+                    (with-new-environment
+                      e ...))))
+        ;(printf "~n")
         (del-context ctx)
         (del-config cfg))))
 
@@ -158,9 +168,62 @@
     (begin0
         (let ()
           (solver-push! ctx solver)
+          (log! "(push)")
           e ...)
       (solver-pop! (get-context) (get-solver) 1)
+      (log! "(pop)")
       (let ([env (get-env)])
         (set-Env-vals!  env vals₀)
         (set-Env-funs!  env funs₀)
         (set-Env-sorts! env sorts₀)))))
+
+;; Given an expr, convert it to a Z3 AST. This is a really simple recursive descent parser.
+;; PN: This no longer is a parser. It only coerces some base values now
+(: expr->_z3-ast : Expr → Z3:Ast)
+(define (expr->_z3-ast e)
+  ;(displayln (format "IN: ~a" e))
+  (define cur-ctx (get-context))
+  (define ast
+    (let go ([e e])
+      (match e
+        ; Numerals
+        [(? exact-integer? n)
+         (mk-numeral cur-ctx (number->string n) (mk-int-sort cur-ctx))]
+        [(?  inexact-real? r)
+         (mk-numeral cur-ctx (number->string r) (mk-real-sort cur-ctx))]
+        ;; Delayed constant
+        [(? symbol? x) (get-val x)]
+        ; Anything else
+        [(? z3-app? e) (app-to-ast cur-ctx e)]
+        [(? z3-ast? e) e]
+        [_ (error 'expr->_z3-ast "unexpected: ~a" e)])))
+  ;(displayln (format "Output: ~a ~a ~a" expr ast (z3:ast-to-string cur-ctx ast)))
+  ast)
+
+(: sort-expr->_z3-sort : Sort-Expr → Z3:Sort)
+;; sort-exprs are sort ids, (_ id parameter*), or (id sort-expr*).
+;; PN: Only have simple sorts for now, which makes it just simple lookup
+(define (sort-expr->_z3-sort expr)
+  (match expr
+    [(? symbol? id) (get-sort id)]
+    [(? z3-sort? expr) expr]
+    [_ (error 'sort-expr->_z3-sort "unexpected: ~a" expr)]))
+
+(: mk-func : Z3:Func-Decl Symbol Natural → Z3:Func)
+;; Make a 1st order Z3 function out of func-decl
+(define (mk-func f-decl name n)
+  (λ xs
+    (define num-xs (length xs))
+    (cond [(= n num-xs)
+           (define cur-ctx (get-context))
+           (define args (map expr->_z3-ast xs))
+           #;(printf "applying ~a to ~a~n"
+                     (func-decl-to-string cur-ctx f-decl)
+                     (for/list : (Listof Sexp) ([arg args])
+                       (define arg-str (ast-to-string cur-ctx arg))
+                       (define sort (sort-to-string cur-ctx (z3-get-sort cur-ctx arg)))
+                       `(,arg-str : ,sort)))
+           (apply mk-app cur-ctx f-decl args)]
+          [else
+           (error name "expect ~a arguments, given ~a" n num-xs)])))
+
