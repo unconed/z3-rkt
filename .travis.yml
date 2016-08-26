@@ -47,7 +47,7 @@ before_script:
 # Tip: Use `raco pkg install --deps search-auto <pkg>` to install any
 # required packages without getting stuck on a confirmation prompt.
 script:
-  - ln -s ~/z3/lib/libz3.so ffi/
+  - Z3_LIB="~/z3/lib"
   - raco make smt/main.rkt
   - raco test tests/guide.rkt
 
