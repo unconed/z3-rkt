@@ -28,6 +28,8 @@ site](http://research.microsoft.com/en-us/um/redmond/projects/z3/download.html).
 We work on Windows, Mac and Linux. You need to copy or create a symlink to `z3.dll`,
 `libz3.so` or `libz3.dylib` in the `ffi/` directory.
 
+Tutorial is in [`tutorial.md`](https://github.com/philnguyen/z3-rkt/blob/master/tutorial.md)
+
 
 Structure
 ----------
