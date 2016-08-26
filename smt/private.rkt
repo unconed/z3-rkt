@@ -74,6 +74,26 @@
         (del-context ctx)
         (del-config cfg))))
 
+  (define-syntax-rule (init-global-context! config-args ...)
+    (let* ([ctx (mk-context (mk-config config-args ...))]
+           [slvr (mk-solver ctx)]
+           [nv (init-env ctx)])
+      (solver-inc-ref! ctx slvr)
+      (context ctx)
+      (solver slvr)
+      (env nv)
+      (log ((inst box (Listof String)) '()))))
+
+  (define-syntax-rule (destroy-global-context!)
+    (begin ; TODO: no del-config ...
+      (define ctx (get-context))
+      (solver-dec-ref! ctx (get-solver))
+      (del-context ctx)
+      (context #f)
+      (solver #f)
+      (env #f)
+      (log #f)))
+
   (define-syntax-rule (with-extended-vals new-vals e ...)
     (let* ([env (get-env)]
            [vals*
@@ -161,7 +181,7 @@
   (set-Env-sorts! env (init-sorts ctx))
   (solver-reset! ctx (get-solver)))
 
-(define-syntax-rule (with-local-push-pop e ...)
+(define-syntax-rule (with-local-stack e ...)
   (match-let ([(Env vals₀ funs₀ sorts₀) (get-env)]
               [ctx (get-context)]
               [solver (get-solver)])

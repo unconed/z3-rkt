@@ -2,6 +2,10 @@
 
 (provide
  with-new-context
+ init-global-context!
+ destroy-global-context!
+ with-local-stack
+ 
  declare-datatypes
  declare-datatype
  dynamic-declare-datatype
@@ -16,7 +20,10 @@
  get-model
  get-stats
  define-fun
- define-const)
+ define-const
+ get-val
+ get-fun
+ get-sort)
 
 (require (for-syntax racket/base
                      racket/syntax
@@ -250,10 +257,12 @@
   ;(log! (format "(assert ~a)" (ast-to-string (get-context) ast)))
   (solver-assert! (get-context) (get-solver) ast))
 
-(: check-sat : → Z3:LBool)
+(: check-sat : → Z3:Sat-LBool)
 (define (check-sat)
-  ;(log! "(check-sat)")
-  (solver-check (get-context) (get-solver)))
+  (case (solver-check (get-context) (get-solver))
+    [(true) 'sat]
+    [(false) 'unsat]
+    [(undef) 'unknown]))
 
 (: get-model : → Z3:Model)
 (define (get-model)

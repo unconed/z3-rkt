@@ -1,7 +1,9 @@
 #lang typed/racket/base
 
-(require "commands.rkt"
+(require "../ffi/types.rkt"
+         "commands.rkt"
          "primitives.rkt")
 
-(provide (all-from-out "commands.rkt"
+(provide (all-from-out "../ffi/types.rkt"
+                       "commands.rkt"
                        "primitives.rkt"))
