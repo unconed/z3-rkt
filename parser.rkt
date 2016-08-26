@@ -308,14 +308,18 @@
   (define ctx (get-context))
   (define solver (get-solver))
   (define stats (solver-get-statistics ctx solver))
-  (for/hasheq : (HashTable Symbol Real) ([i (stats-size ctx stats)])
-    (define k (string->symbol (string-replace (stats-get-key ctx stats i) " " "-")))
-    (define v
-      (cond [(stats-is-uint? ctx stats i)
-             (stats-get-uint-value ctx stats i)]
-            [else
-             (stats-get-double-value ctx stats i)]))
-    (values k v)))
+  (begin0
+      (begin
+        (stats-inc-ref! ctx stats)
+        (for/hasheq : (HashTable Symbol Real) ([i (stats-size ctx stats)])
+          (define k (string->symbol (string-replace (stats-get-key ctx stats i) " " "-")))
+          (define v
+            (cond [(stats-is-uint? ctx stats i)
+                   (stats-get-uint-value ctx stats i)]
+                  [else
+                   (stats-get-double-value ctx stats i)]))
+          (values k v)))
+    (stats-dec-ref! ctx stats)))
 
 ;; XXX need to implement a function to get all models. To do that we need
 ;; push, pop, and a way to navigate a model.
