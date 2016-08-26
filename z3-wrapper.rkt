@@ -44,6 +44,7 @@
   [#:opaque Z3:Constructor z3-constructor?]
   [#:opaque Z3:Pattern     z3-pattern?]
   [#:opaque Z3:Model       z3-model?]
+  [#:opaque Z3:Stats       z3-stats?]
   [#:opaque Z3:Null        z3-null?]
   [#:struct list-instance ([sort : Z3:Sort]
                            [nil : Z3:Func-Decl]
@@ -84,6 +85,7 @@
   [solver-check (Z3:Context Z3:Solver → Z3:LBool)]
   [solver-get-model (Z3:Context Z3:Solver → Z3:Model)]
   [solver-get-reason-unknown (Z3:Context Z3:Solver → String)]
+  [solver-get-statistics (Z3:Context Z3:Solver → Z3:Stats)]
   [solver-to-string (Z3:Context Z3:Solver → String)]
   
   [mk-string-symbol (Z3:Context String → Z3:Symbol)]
@@ -172,6 +174,17 @@
   [get-app-num-args (Z3:Context Z3:App → Nonnegative-Fixnum)]
   [app-to-ast (Z3:Context Z3:App → Z3:Ast)]
   [get-app-decl (Z3:Context Z3:App → Z3:Func-Decl)]
+
+  ;; Statistics
+  [stats-to-string (Z3:Context Z3:Stats → String)]
+  [stats-inc-ref! (Z3:Context Z3:Stats → Void)]
+  [stats-dec-ref! (Z3:Context Z3:Stats → Void)]
+  [stats-size (Z3:Context Z3:Stats → Nonnegative-Fixnum)]
+  [stats-get-key (Z3:Context Z3:Stats Nonnegative-Fixnum → String)]
+  [stats-is-uint? (Z3:Context Z3:Stats Nonnegative-Fixnum → Boolean)]
+  [stats-is-double? (Z3:Context Z3:Stats Nonnegative-Fixnum → Boolean)]
+  [stats-get-uint-value (Z3:Context Z3:Stats Nonnegative-Fixnum → Nonnegative-Fixnum)]
+  [stats-get-double-value (Z3:Context Z3:Stats Nonnegative-Fixnum → Inexact-Real)]
   )
 
 
@@ -223,4 +236,3 @@
          (define-values (k v) (keyword-arg->_z3-param kw kw-arg))
          (set-param-value! cfg k v))
        cfg))))
-

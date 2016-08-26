@@ -9,6 +9,7 @@
          racket/set
          racket/match
          racket/syntax
+         racket/string
          syntax/parse/define
          "z3-wrapper.rkt"
          "environment.rkt"
@@ -102,6 +103,7 @@
            [Symbol (Listof Sort-Expr) Sort-Expr → (U Z3:Ast Z3:Func)]))
 ;; Declare a new function. Each `D` is a sort-expr.
 (define (dynamic-declare-fun f-id doms rng)
+  ;(log! (format "(declare-fun ~a ~a ~a)" f-id doms rng))
   (cond
     [(null? doms)
      (define v (make-uninterpreted (symbol->string f-id) '() rng))
@@ -288,15 +290,32 @@
 
 (: assert! : Expr → Void)
 (define (assert! e)
-  (solver-assert! (get-context) (get-solver) (expr->_z3-ast e)))
+  (define ast (expr->_z3-ast e))
+  ;(log! (format "(assert ~a)" (ast-to-string (get-context) ast)))
+  (solver-assert! (get-context) (get-solver) ast))
 
 (: check-sat : → Z3:LBool)
 (define (check-sat)
+  ;(log! "(check-sat)")
   (solver-check (get-context) (get-solver)))
 
 (: get-model : → Z3:Model)
 (define (get-model)
   (solver-get-model (get-context) (get-solver)))
+
+(: get-stats : → (HashTable Symbol Real))
+(define (get-stats)
+  (define ctx (get-context))
+  (define solver (get-solver))
+  (define stats (solver-get-statistics ctx solver))
+  (for/hasheq : (HashTable Symbol Real) ([i (stats-size ctx stats)])
+    (define k (string->symbol (string-replace (stats-get-key ctx stats i) " " "-")))
+    (define v
+      (cond [(stats-is-uint? ctx stats i)
+             (stats-get-uint-value ctx stats i)]
+            [else
+             (stats-get-double-value ctx stats i)]))
+    (values k v)))
 
 ;; XXX need to implement a function to get all models. To do that we need
 ;; push, pop, and a way to navigate a model.
@@ -315,7 +334,8 @@
   ;make-fun/list
   assert!
   check-sat
-  get-model)
+  get-model
+  get-stats)
  ; XXX move these to a submodule once Racket 5.3 is released
  (prefix-out smt:internal:
              (combine-out

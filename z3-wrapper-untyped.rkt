@@ -1,5 +1,7 @@
 #lang racket/base
 
+;; This module defines (untyped) interface between Racket and Z3's C API
+
 (require (for-syntax racket/base
                      racket/syntax
                      syntax/parse)
@@ -32,7 +34,9 @@
     [(_ x #:wrapper w : t ...)
      (begin
        (define x
-         (let* ([c-name (regexp-replaces (format "Z3_~a" 'x) '((#rx"-" "_") (#rx"!$" "")))]
+         (let* ([c-name (regexp-replaces (format "Z3_~a" 'x) '((#rx"-" "_")
+                                                               (#rx"!$" "")
+                                                               (#rx"\\?$" "")))]
                 [func (get-ffi-obj c-name libz3 (_fun t ...))])
            (w func)))
        (provide x))]))
@@ -60,6 +64,7 @@
 (define-cpointer-type _z3-constructor) (provide z3-constructor?)
 (define-cpointer-type _z3-pattern    ) (provide z3-pattern?)
 (define-cpointer-type _z3-model      ) (provide z3-model?)
+(define-cpointer-type _z3-stats      ) (provide z3-stats?)
 (define z3-null #f)
 (define z3-null? not)
 (provide z3-null z3-null?)
@@ -116,7 +121,7 @@
 (defz3 solver-get-model : _z3-context _z3-solver -> _z3-model)
 ; TODO: solver-get-proof, solver-get-unsat-core
 (defz3 solver-get-reason-unknown : _z3-context _z3-solver -> _string)
-; TODO: solver-get-statistics
+(defz3 solver-get-statistics : _z3-context _z3-solver -> _z3-stats)
 (defz3 solver-to-string : _z3-context _z3-solver -> _string)
 
 (defz3 mk-string-symbol : _z3-context _string -> _z3-symbol)
@@ -275,3 +280,14 @@
 (defz3 get-app-num-args : _z3-context _z3-app -> _uint)
 (defz3 app-to-ast : _z3-context _z3-app -> _z3-ast)
 (defz3 get-app-decl : _z3-context _z3-app -> _z3-func-decl)
+
+;; Statistics
+(defz3 stats-to-string : _z3-context _z3-stats -> _string)
+(defz3 stats-inc-ref! : _z3-context _z3-stats -> _void)
+(defz3 stats-dec-ref! : _z3-context _z3-stats -> _void)
+(defz3 stats-size : _z3-context _z3-stats -> _uint)
+(defz3 stats-get-key : _z3-context _z3-stats _uint -> _string)
+(defz3 stats-is-uint? : _z3-context _z3-stats _uint -> _bool)
+(defz3 stats-is-double? : _z3-context _z3-stats _uint -> _bool)
+(defz3 stats-get-uint-value : _z3-context _z3-stats _uint -> _uint)
+(defz3 stats-get-double-value : _z3-context _z3-stats _uint -> _double)
