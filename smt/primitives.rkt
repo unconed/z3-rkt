@@ -198,4 +198,9 @@
 (provide forall/s (rename-out [forall/s ∀/s])
          exists/s (rename-out [exists/s ∃/s])
          dynamic-forall/s (rename-out [dynamic-forall/s dynamic-∀/s])
-         dynamic-exists/s (rename-out [dynamic-exists/s dynamic-∃/s]))
+         dynamic-exists/s (rename-out [dynamic-exists/s dynamic-∃/s])
+         false/s
+         true/s
+         Int/s
+         Real/s
+         Bool/s)

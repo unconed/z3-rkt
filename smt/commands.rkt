@@ -5,6 +5,10 @@
  init-global-context!
  destroy-global-context!
  with-local-stack
+ get-val
+ get-fun
+ get-sort
+ get-log
  
  declare-datatypes
  declare-datatype
@@ -19,11 +23,11 @@
  check-sat
  get-model
  get-stats
+ pattern-of
+
  define-fun
  define-const
- get-val
- get-fun
- get-sort)
+ )
 
 (require (for-syntax racket/base
                      racket/syntax
@@ -267,6 +271,10 @@
 (: get-model : → Z3:Model)
 (define (get-model)
   (solver-get-model (get-context) (get-solver)))
+
+(: pattern-of : Z3:Ast Z3:Ast * → Z3:Pattern)
+(define (pattern-of ast . asts)
+  (apply mk-pattern (get-context) ast asts))
 
 (: get-stats : → (HashTable Symbol Real))
 (define (get-stats)
