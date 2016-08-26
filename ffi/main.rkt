@@ -34,6 +34,8 @@
   [solver-to-string (Z3:Context Z3:Solver → String)]
   
   [mk-string-symbol (Z3:Context String → Z3:Symbol)]
+
+  ;; Sorts
   [mk-uninterpreted-sort (Z3:Context Z3:Symbol → Z3:Sort)]
   [mk-bool-sort (Z3:Context → Z3:Sort)]
   [mk-int-sort (Z3:Context → Z3:Sort)]
@@ -41,6 +43,14 @@
   [mk-bv-sort (Z3:Context Nonnegative-Fixnum → Z3:Sort)]
   [mk-array-sort (Z3:Context Z3:Sort Z3:Sort → Z3:Sort)]
   [mk-list-sort (Z3:Context Z3:Symbol Z3:Sort → list-instance)]
+  [mk-constructor
+   (Z3:Context Z3:Symbol Z3:Symbol (Listof (List Z3:Symbol (U Z3:Null Z3:Sort) Nonnegative-Fixnum)) → Z3:Constructor)]
+  [del-constructor (Z3:Context Z3:Constructor → Void)]
+  [mk-datatype (Z3:Context Z3:Symbol (Listof Z3:Constructor) → Z3:Sort)]
+  [query-constructor
+   (Z3:Context Z3:Constructor Nonnegative-Fixnum →
+               (Values Z3:Func-Decl Z3:Func-Decl (Listof Z3:Func-Decl)))]
+
   [mk-true (Z3:Context → Z3:Ast)]
   [mk-false (Z3:Context → Z3:Ast)]
   [mk-eq (Z3:Context Z3:Ast Z3:Ast → Z3:Ast)]
@@ -84,16 +94,6 @@
   ;; Array operations
   [mk-select (Z3:Context Z3:Ast Z3:Ast → Z3:Ast)]
   [mk-store (Z3:Context Z3:Ast Z3:Ast Z3:Ast → Z3:Ast)]
-
-  ;; Complex types
-  [mk-constructor
-   (Z3:Context Z3:Symbol Z3:Symbol (Listof (List Z3:Symbol (U Z3:Null Z3:Sort) Nonnegative-Fixnum)) → Z3:Constructor)]
-
-  [query-constructor
-   (Z3:Context Z3:Constructor Nonnegative-Fixnum →
-               (Values Z3:Func-Decl Z3:Func-Decl (Listof Z3:Func-Decl)))]
-
-  [mk-datatype (Z3:Context Z3:Symbol (Listof Z3:Constructor) → Z3:Sort)]
 
   ;; Quantifiers
   [mk-forall-const

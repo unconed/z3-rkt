@@ -123,13 +123,17 @@
 (defz3 solver-to-string : _z3-context _z3-solver -> _string)
 
 (defz3 mk-string-symbol : _z3-context _string -> _z3-symbol)
+
+;; Sorts
 (defz3 mk-uninterpreted-sort : _z3-context _z3-symbol -> _z3-sort)
 (defz3 mk-bool-sort : _z3-context -> _z3-sort)
 (defz3 mk-int-sort : _z3-context -> _z3-sort)
 (defz3 mk-real-sort : _z3-context -> _z3-sort)
 (defz3 mk-bv-sort : _z3-context _uint -> _z3-sort)
 (defz3 mk-array-sort : _z3-context _z3-sort _z3-sort -> _z3-sort)
-
+; TODO mk-finite-domain-sort
+; TODO mk-tuple-sort
+; TODO mk-enumeration-sort
 (defz3 mk-list-sort : _z3-context _z3-symbol _z3-sort
   (nil-decl : (_ptr o _z3-func-decl))
   (is-nil-decl : (_ptr o _z3-func-decl))
@@ -145,6 +149,36 @@
                  is-cons-decl
                  head-decl
                  tail-decl))
+(defz3 mk-constructor :
+  (ctx name recognizer names-sorts-refs) ::
+  (ctx         : _z3-context)
+  (name        : _z3-symbol)
+  (recognizer  : _z3-symbol)
+  (num-fields  : _uint = (length names-sorts-refs))
+  (field-names : (_list i _z3-symbol) = (map car names-sorts-refs))
+  (sorts       : (_list i _z3-sort/null) = (map cadr names-sorts-refs))
+  (sort-refs   : (_list i _uint) = (map caddr names-sorts-refs))
+  -> _z3-constructor)
+(defz3 del-constructor : _z3-context _z3-constructor -> _void)
+(defz3 mk-datatype :
+  (ctx name constructors) ::
+  (ctx : _z3-context)
+  (name : _z3-symbol)
+  (_uint = (length constructors))
+  (constructors : (_list i _z3-constructor))
+  -> _z3-sort)
+; TODO mk-constructor-list del-constructor-list
+; TODO mk-datatypes
+(defz3 query-constructor :
+  (ctx constructor num-fields) ::
+  (ctx            : _z3-context)
+  (constructor    : _z3-constructor)
+  (num-fields     : _uint)
+  (constructor-fn : (_ptr o _z3-func-decl))
+  (tester-fn      : (_ptr o _z3-func-decl))
+  (accessor-fns   : (_list o _z3-func-decl num-fields))
+  -> _void ->
+  (values constructor-fn tester-fn accessor-fns))
 
 (defz3 mk-true : _z3-context -> _z3-ast)
 (defz3 mk-false : _z3-context -> _z3-ast)
@@ -203,37 +237,6 @@
 ;; Array operations
 (defz3 mk-select : _z3-context _z3-ast _z3-ast -> _z3-ast)
 (defz3 mk-store : _z3-context _z3-ast _z3-ast _z3-ast -> _z3-ast)
-
-;; Complex types
-(defz3 mk-constructor :
-  (ctx name recognizer names-sorts-refs) ::
-  (ctx         : _z3-context)
-  (name        : _z3-symbol)
-  (recognizer  : _z3-symbol)
-  (num-fields  : _uint = (length names-sorts-refs))
-  (field-names : (_list i _z3-symbol) = (map car names-sorts-refs))
-  (sorts       : (_list i _z3-sort/null) = (map cadr names-sorts-refs))
-  (sort-refs   : (_list i _uint) = (map caddr names-sorts-refs))
-  -> _z3-constructor)
-
-(defz3 query-constructor :
-  (ctx constructor num-fields) ::
-  (ctx            : _z3-context)
-  (constructor    : _z3-constructor)
-  (num-fields     : _uint)
-  (constructor-fn : (_ptr o _z3-func-decl))
-  (tester-fn      : (_ptr o _z3-func-decl))
-  (accessor-fns   : (_list o _z3-func-decl num-fields))
-  -> _void ->
-  (values constructor-fn tester-fn accessor-fns))
-
-(defz3 mk-datatype :
-  (ctx name constructors) ::
-  (ctx : _z3-context)
-  (name : _z3-symbol)
-  (_uint = (length constructors))
-  (constructors : (_list i _z3-constructor))
-  -> _z3-sort)
 
 ;; Quantifiers
 (defz3 mk-forall-const :
