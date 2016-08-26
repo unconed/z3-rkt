@@ -279,6 +279,25 @@
 (defz3 app-to-ast : _z3-context _z3-app -> _z3-ast)
 (defz3 get-app-decl : _z3-context _z3-app -> _z3-func-decl)
 
+;; Model
+(defz3 model-inc-ref! : _z3-context _z3-model -> _void)
+(defz3 model-dec-ref! : _z3-context _z3-model -> _void)
+(defz3 model-eval : _z3-context _z3-model _z3-ast _bool (res : (_ptr o _z3-ast))
+  -> (ok? : _bool)
+  -> (and ok? res))
+(defz3 model-get-const-decl : _z3-context _z3-model _uint -> _z3-func-decl)
+(defz3 model-get-const-interp : _z3-context _z3-model _z3-func-decl -> _z3-ast)
+(defz3 model-get-func-decl : _z3-context _z3-model _uint -> _z3-func-decl)
+(defz3 model-get-func-interp : _z3-context _z3-model _z3-func-decl -> _z3-func-decl/null)
+(defz3 model-get-num-consts : _z3-context _z3-model -> _uint)
+(defz3 model-get-num-funcs : _z3-context _z3-model -> _uint)
+(defz3 model-get-num-sorts : _z3-context _z3-model -> _uint)
+(defz3 model-get-sort : _z3-context _z3-model _uint -> _z3-sort)
+;; TODO model-get-sort-universe
+(defz3 model-has-interp : _z3-context _z3-model _z3-func-decl -> _bool)
+;; TODO model-to-string
+
+
 ;; Statistics
 (defz3 stats-to-string : _z3-context _z3-stats -> _string)
 (defz3 stats-inc-ref! : _z3-context _z3-stats -> _void)

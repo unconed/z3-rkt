@@ -120,6 +120,20 @@
   [app-to-ast (Z3:Context Z3:App → Z3:Ast)]
   [get-app-decl (Z3:Context Z3:App → Z3:Func-Decl)]
 
+  ;; Model
+  [model-inc-ref! (Z3:Context Z3:Model → Void)]
+  [model-dec-ref! (Z3:Context Z3:Model → Void)]
+  [model-eval (Z3:Context Z3:Model Z3:Ast Boolean → (Option Z3:Ast))]
+  [model-get-const-decl (Z3:Context Z3:Model Nonnegative-Fixnum → Z3:Func-Decl)]
+  [model-get-const-interp (Z3:Context Z3:Model Z3:Func-Decl → Z3:Ast)]
+  [model-get-func-decl (Z3:Context Z3:Model Nonnegative-Fixnum → Z3:Func-Decl)]
+  [model-get-func-interp (Z3:Context Z3:Model Z3:Func-Decl → (Option Z3:Func-Decl))]
+  [model-get-num-consts (Z3:Context Z3:Model → Nonnegative-Fixnum)]
+  [model-get-num-funcs (Z3:Context Z3:Model → Nonnegative-Fixnum)]
+  [model-get-num-sorts (Z3:Context Z3:Model → Nonnegative-Fixnum)]
+  [model-get-sort (Z3:Context Z3:Model Nonnegative-Fixnum → Z3:Sort)]
+  [model-has-interp (Z3:Context Z3:Model Z3:Func-Decl → Boolean)]
+
   ;; Statistics
   [stats-to-string (Z3:Context Z3:Stats → String)]
   [stats-inc-ref! (Z3:Context Z3:Stats → Void)]
