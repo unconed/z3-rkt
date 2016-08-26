@@ -16,11 +16,8 @@ Old exapmles that used sort instances are not working for now.
 Installing
 ----------
 
-`z3-rkt` has been tested with Z3 4.4.1, which you can download for your platform from [the
-Microsoft Research
-site](http://research.microsoft.com/en-us/um/redmond/projects/z3/download.html).
-We work on Windows, Mac and Linux. You need to copy or create a symlink to `z3.dll`,
-`libz3.so` or `libz3.dylib` in the `ffi/` directory.
+`z3-rkt` has been tested with Z3 4.4.1, which you can download and build from [https://github.com/Z3Prover/z3](https://github.com/Z3Prover/z3).
+Depending on your environment Windows, Mac, or Linux, you'll need to copy or create a symlink to `z3.dll`, `libz3.so` or `libz3.dylib` in the `ffi/` directory.
 
 Tutorial is in [`tutorial.md`](https://github.com/philnguyen/z3-rkt/blob/master/tutorial.md)
 
