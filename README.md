@@ -4,7 +4,7 @@
 This package provides an implementation of Z3 in Racket.
 Although I develop this package specifically for use in my symbolic execution,
 it should be usable for general-purpose Racket SMT integration.
-I originally forked from [https://github.com/sid0/z3.rkt](https://github.com/sid0/z3.rkt), then:
+I originally forked from [Siddharth Agarwal's repository](https://github.com/sid0/z3.rkt), then:
 * gave Typed Racket bindings; ported all but the ffi layer to Typed Racket
 * generalized `declare-datatypes` to allow complex and recursive datatypes
 * migrated from the deprecated API (which was very unresponsive to timeouts and had strange memory behavior) to the new Solver API
@@ -17,7 +17,7 @@ Installing
 ----------
 
 `z3-rkt` has been tested with Z3 4.4.1, which you can download and build from [https://github.com/Z3Prover/z3](https://github.com/Z3Prover/z3).
-Depending on your environment Windows, Mac, or Linux, you'll need to copy or create a symlink to `z3.dll`, `libz3.so` or `libz3.dylib` in the `ffi/` directory.
+Depending on your environment being Windows, Mac, or Linux, you'll need to copy or create a symlink to `z3.dll`, `libz3.so` or `libz3.dylib` in the `ffi/` directory.
 
 Tutorial is in [`tutorial.md`](https://github.com/philnguyen/z3-rkt/blob/master/tutorial.md)
 
