@@ -44,6 +44,7 @@
   [#:opaque Z3:Model       z3-model?]
   [#:opaque Z3:Stats       z3-stats?]
   [#:opaque Z3:Ast-Vector  z3-ast-vector?]
+  [#:opaque Z3:Constructor-List z3-constructor-list?]
   [#:opaque Z3:Null        z3-null?]
   [#:struct list-instance ([sort : Z3:Sort]
                            [nil : Z3:Func-Decl]

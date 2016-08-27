@@ -71,6 +71,7 @@
 (define-cpointer-type _z3-model      ) (provide z3-model?)
 (define-cpointer-type _z3-stats      ) (provide z3-stats?)
 (define-cpointer-type _z3-ast-vector ) (provide z3-ast-vector?)
+(define-cpointer-type _z3-constructor-list) (provide z3-constructor-list?)
 (define z3-null #f)
 (define z3-null? not)
 (provide z3-null z3-null?)
@@ -176,8 +177,20 @@
   (_uint = (length constructors))
   (constructors : (_list i _z3-constructor))
   -> _z3-sort)
-; TODO mk-constructor-list del-constructor-list
-; TODO mk-datatypes
+(defz3 mk-constructor-list : (ctx constructors) ::
+  (ctx              : _z3-context)
+  (num-constructors : _uint = (length constructors))
+  (constructors     : (_list i _z3-constructor))
+  -> _z3-constructor-list)
+(defz3 del-constructor-list : _z3-context _z3-constructor-list -> _void)
+(defz3 mk-datatypes : (ctx sort-decs) ::
+  (ctx               : _z3-context)
+  (num-sorts         : _uint = (length sort-decs))
+  (sort-names        : (_list i _z3-symbol) = (map car sort-decs))
+  (sorts             : (_list o _z3-sort num-sorts))
+  (constructor-lists : (_list i _z3-constructor-list) = (map cdr sort-decs))
+  -> _void
+  -> sorts)
 (defz3 query-constructor :
   (ctx constructor num-fields) ::
   (ctx            : _z3-context)

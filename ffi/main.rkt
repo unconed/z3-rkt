@@ -50,6 +50,8 @@
    (Z3:Context Z3:Symbol Z3:Symbol (Listof (List Z3:Symbol (U Z3:Null Z3:Sort) Nonnegative-Fixnum)) → Z3:Constructor)]
   [del-constructor (Z3:Context Z3:Constructor → Void)]
   [mk-datatype (Z3:Context Z3:Symbol (Listof Z3:Constructor) → Z3:Sort)]
+  [mk-constructor-list (Z3:Context (Listof Z3:Constructor) → Z3:Constructor-List)]
+  [del-constructor-list (Z3:Context Z3:Constructor-List → Void)]
   [query-constructor
    (Z3:Context Z3:Constructor Nonnegative-Fixnum →
                (Values Z3:Func-Decl Z3:Func-Decl (Listof Z3:Func-Decl)))]
