@@ -14,7 +14,8 @@
 
 (struct Env ([vals  : (HashTable Symbol Z3:Ast)]
              [funs  : (HashTable Symbol Z3:Func)]
-             [sorts : (HashTable Symbol Z3:Sort)])
+             [sorts : (HashTable Symbol Z3:Sort)]
+             [sort-funs : (HashTable Symbol Z3:Sort-Func)])
   #:mutable
   #:transparent)
 
@@ -87,12 +88,12 @@
       (env #f)))
 
   (define-syntax-rule (with-extended-vals new-vals e ...)
-    (let* ([env (get-env)]
-           [vals*
-            (for/fold ([acc : (HashTable Symbol Z3:Ast) (Env-vals env)])
-                      ([(k v) new-vals])
-              (hash-set acc k v))])
-      (with-env (Env vals* (Env-funs env) (Env-sorts env))
+    (match-let ([(Env vals funs sorts sort-funs) (get-env)])
+      (define vals*
+        (for/fold ([acc : (HashTable Symbol Z3:Ast) vals])
+                  ([(k v) new-vals])
+          (hash-set acc k v)))
+      (with-env (Env vals* funs sorts sort-funs)
         e ...))))
 
 ;; A symbol table for sorts
@@ -136,51 +137,48 @@
   (hash-ref funs id (λ ()
                       (error 'get-fun "cannot find `~a` among ~a" id (hash-keys funs)))))
 
-;; Primitive sorts
-(define (Int/s) (get-sort 'Int))
-(define (Real/s) (get-sort 'Real))
-(define (Bool/s) (get-sort 'Bool))
+(: get-sort-fun : Symbol → Z3:Sort-Func)
+(define (get-sort-fun id)
+  (define sort-funs (Env-sort-funs (get-env)))
+  (hash-ref sort-funs id (λ ()
+                           (error 'get-sort-fun "cannot find `~a` among ~a" id (hash-keys sort-funs)))))
 
-;; Primitive constants
-(define (true/s) (get-val 'true))
-(define (false/s) (get-val 'false))
+(: set-sort-fun! : Symbol Z3:Sort-Func → Void)
+(define (set-sort-fun! id v)
+  (define env (get-env))
+  (define sort-funs (Env-sort-funs env))
+  (set-Env-sort-funs! env (hash-set sort-funs id v)))
 
-(: init-vals : Z3:Context → (HashTable Symbol Z3:Ast))
-(define (init-vals ctx)
-  (hasheq 'true  (mk-true ctx)
-          'false (mk-false ctx)))
-
-(: init-funs : Z3:Context → (HashTable Symbol Z3:Func))
-(define (init-funs ctx)
-  (hasheq))
-
-(: init-sorts : Z3:Context → (HashTable Symbol Z3:Sort))
-(define (init-sorts ctx)
-  (hasheq 'Int  (mk-int-sort ctx)
-          'Real (mk-real-sort ctx)
-          'Bool (mk-bool-sort ctx)))
+;; Primitive sort constructors
+(define Array/s : Z3:Sort-Func
+  (match-lambda*
+   [(list dom rng)
+    (mk-array-sort (get-context) (sort-expr->_z3-sort dom) (sort-expr->_z3-sort rng))]
+   [xs
+    (error 'Array/s "expect 2 sorts, given ~a: ~a" (length xs) xs)]))
 
 (: init-env : Z3:Context → Env)
 (define (init-env ctx)
-  (Env (init-vals ctx) (init-funs ctx) (init-sorts ctx)))
+  (Env (hasheq) (hasheq) (hasheq) (hasheq)))
 
 (: reset! : → Void)
 (define (reset!)
   (define ctx (get-context))
   (define env (get-env))
-  (set-Env-vals!  env (init-vals ctx))
-  (set-Env-funs!  env (init-funs ctx))
-  (set-Env-sorts! env (init-sorts ctx))
+  (set-Env-vals!      env (hasheq))
+  (set-Env-funs!      env (hasheq))
+  (set-Env-sorts!     env (hasheq))
+  (set-Env-sort-funs! env (hasheq))
   (solver-reset! ctx (get-solver)))
 
 (define-syntax-rule (with-local-stack e ...)
   (match-let ([ctx (get-context)]
               [solver (get-solver)]
-              [(Env vals funs sorts) (get-env)])
+              [(Env vals funs sorts sort-funs) (get-env)])
     (begin0
         (let ()
           (solver-push! ctx solver)
-          (with-env (Env vals funs sorts)
+          (with-env (Env vals funs sorts sort-funs) ; copied environment
             e ...))
       (solver-pop! ctx solver 1))))
 

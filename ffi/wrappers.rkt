@@ -260,9 +260,17 @@
   -> _z3-func-decl)
 (defz3 mk-fresh-const : _z3-context _string _z3-sort -> _z3-app)
 
-;; Array operations
+;; Arrays
 (defz3 mk-select : _z3-context _z3-ast _z3-ast -> _z3-ast)
 (defz3 mk-store : _z3-context _z3-ast _z3-ast _z3-ast -> _z3-ast)
+(defz3 mk-const-array : _z3-context _z3-sort _z3-ast -> _z3-ast)
+(defz3 mk-map : (ctx f . args) ::
+  (ctx      : _z3-context)
+  (f        : _z3-func-decl)
+  (num-args : _uint = (length args))
+  (args     : (_list i _z3-ast))
+  -> _z3-ast)
+(defz3 mk-array-default : _z3-context _z3-ast -> _z3-ast)
 
 ;; Quantifiers
 (defz3 mk-pattern : (ctx t . ts) ::

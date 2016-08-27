@@ -57,3 +57,4 @@
 (define-type Z3:Func (Expr * → Z3:Ast))
 (define-type Expr (U Z3:Ast Z3:App Real Symbol))
 (define-type Sort-Expr (U Z3:Sort Symbol))
+(define-type Z3:Sort-Func (Sort-Expr * → Z3:Sort))

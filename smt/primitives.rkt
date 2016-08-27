@@ -26,6 +26,16 @@
     #:description "function arity (natural or *)"
     (pattern (~or n:nat (~literal *) (~literal lassoc) (~literal rassoc)))))
 
+(define-syntax (define-builtin-symbol stx)
+  (syntax-parse stx
+    [(_ x:id v:id)
+     (with-syntax ([x/c (add-smt-suffix #'x)])
+       #'(begin
+           (define-syntax x/c
+             (syntax-parser
+               [c #:when (identifier? #'c) #'(v (get-context))]))
+           (provide x/c)))]))
+
 (define-syntax (define-builtin-proc stx)
   (syntax-parse stx
     [(_ f:id v n:arity)
@@ -85,6 +95,15 @@
   (for/fold ([acc : Z3:Ast (expr->_z3-ast fst)]) ([x rst])
     (fn acc (expr->_z3-ast x))))
 
+;; Builtin constants
+(define-builtin-symbol true mk-true)
+(define-builtin-symbol false mk-false)
+
+;; Builtin sorts
+(define-builtin-symbol Int mk-int-sort)
+(define-builtin-symbol Real mk-real-sort)
+(define-builtin-symbol Bool mk-bool-sort)
+
 ;; Builtin symbols
 (define-builtin-proc = mk-eq 2)
 (define-builtin-proc distinct mk-distinct *)
@@ -112,6 +131,7 @@
 (define-builtin-proc <= mk-le 2)
 (define-builtin-proc > mk-gt 2)
 (define-builtin-proc >= mk-ge 2)
+
 ;; Array operations
 (define-builtin-proc select mk-select 2)
 (define-builtin-proc store mk-store 3)
@@ -186,4 +206,5 @@
          true/s
          Int/s
          Real/s
-         Bool/s)
+         Bool/s
+         Array/s)

@@ -54,7 +54,7 @@
   (new-sort! id T)
   T)
 
-(define-simple-macro (declare-sort T:id) (dynamic-declare-sort 'T))
+(define-simple-macro (declare-sort T:id) (define T (dynamic-declare-sort 'T)))
 
 (: dynamic-declare-fun
    (case-> [Symbol Null Sort-Expr → Z3:Ast]
@@ -82,7 +82,7 @@
 (define (dynamic-declare-const c-id rng) (dynamic-declare-fun c-id '() rng))
 
 (define-simple-macro (declare-fun f:id (D ...) R)
-  (define f (dynamic-declare-fun 'f '(D ...) 'R)))
+  (define f (dynamic-declare-fun 'f (list D ...) R)))
 (define-simple-macro (declare-const c:id T) (declare-fun c () T))
 
 (: constr->_z3-constructor :

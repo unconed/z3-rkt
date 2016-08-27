@@ -98,9 +98,12 @@
   [mk-fresh-func-decl (Z3:Context String (Listof Z3:Sort) Z3:Sort → Z3:Func-Decl)]
   [mk-fresh-const (Z3:Context String Z3:Sort → Z3:App)]
 
-  ;; Array operations
+  ;; Arrays
   [mk-select (Z3:Context Z3:Ast Z3:Ast → Z3:Ast)]
   [mk-store (Z3:Context Z3:Ast Z3:Ast Z3:Ast → Z3:Ast)]
+  [mk-const-array (Z3:Context Z3:Sort Z3:Ast → Z3:Ast)]
+  [mk-map (Z3:Context Z3:Func-Decl Z3:Ast * → Z3:Ast)]
+  [mk-array-default (Z3:Context Z3:Ast → Z3:Ast)]
 
   ;; Quantifiers
   [mk-pattern (Z3:Context Z3:Ast Z3:Ast * → Z3:Pattern)]
