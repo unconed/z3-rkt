@@ -172,18 +172,15 @@
   (solver-reset! ctx (get-solver)))
 
 (define-syntax-rule (with-local-stack e ...)
-  (match-let ([(Env vals₀ funs₀ sorts₀) (get-env)]
-              [ctx (get-context)]
-              [solver (get-solver)])
+  (match-let ([ctx (get-context)]
+              [solver (get-solver)]
+              [(Env vals funs sorts) (get-env)])
     (begin0
         (let ()
           (solver-push! ctx solver)
-          e ...)
-      (solver-pop! (get-context) (get-solver) 1)
-      (let ([env (get-env)])
-        (set-Env-vals!  env vals₀)
-        (set-Env-funs!  env funs₀)
-        (set-Env-sorts! env sorts₀)))))
+          (with-env (Env vals funs sorts)
+            e ...))
+      (solver-pop! ctx solver 1))))
 
 ;; Given an expr, convert it to a Z3 AST. This is a really simple recursive descent parser.
 ;; PN: This no longer is a parser. It only coerces some base values now
