@@ -79,8 +79,7 @@
       (env nv)))
 
   (define-syntax-rule (destroy-global-context!)
-    (begin ; TODO: no del-config ...
-      (define ctx (get-context))
+    (let ([ctx (get-context)]) ; TODO: no del-config ...
       (solver-dec-ref! ctx (get-solver))
       (del-context ctx)
       (context #f)
