@@ -208,8 +208,6 @@
 
 (define-nary mk-distinct : _z3-ast -> _z3-ast)
 
-(define-nary mk-pattern : _z3-ast -> _z3-pattern)
-
 ;; Boolean operations
 (defz3 mk-not : _z3-context _z3-ast -> _z3-ast)
 (defz3 mk-ite : _z3-context _z3-ast _z3-ast _z3-ast -> _z3-ast)
@@ -267,26 +265,76 @@
 (defz3 mk-store : _z3-context _z3-ast _z3-ast _z3-ast -> _z3-ast)
 
 ;; Quantifiers
+(defz3 mk-pattern : (ctx t . ts) ::
+  (ctx  : _z3-context)
+  (num-patterns : _uint = (+ 1 (length ts)))
+  (terms : (_list i _z3-ast) = (cons t ts))
+  -> _z3-pattern)
+(defz3 mk-bound : _z3-context _uint _z3-sort -> _z3-ast)
+(defz3 mk-forall : (ctx weight patterns decls body) ::
+  (ctx          : _z3-context)
+  (weight       : _uint)
+  (num-patterns : _uint = (length patterns))
+  (patterns     : (_list i _z3-pattern))
+  (num-decls    : _uint = (length decls))
+  (decl-sorts   : (_list i _z3-sort  ) = (map cdr decls))
+  (decl-names   : (_list i _z3-symbol) = (map car decls))
+  (body         : _z3-ast)
+  -> _z3-ast)
+(defz3 mk-exists : (ctx weight patterns decls body) ::
+  (ctx          : _z3-context)
+  (weight       : _uint)
+  (num-patterns : _uint = (length patterns))
+  (patterns     : (_list i _z3-pattern))
+  (num-decls    : _uint = (length decls))
+  (decl-sorts   : (_list i _z3-sort  ) = (map cdr decls))
+  (decl-names   : (_list i _z3-symbol) = (map car decls))
+  (body         : _z3-ast)
+  -> _z3-ast)
+(defz3 mk-quantifier : (ctx forall? weight patterns decls body) ::
+  (ctx : _z3-context)
+  (forall? : _bool)
+  (weight : _uint)
+  (num-patterns : _uint = (length patterns))
+  (patterns : (_list i _z3-pattern))
+  (num-decls : _uint = (length decls))
+  (decl-sorts : (_list i _z3-sort  ) = (map cdr decls))
+  (decl-names : (_list i _z3-symbol) = (map car decls))
+  (body : _z3-ast)
+  -> _z3-ast)
+;; TODO mk-quantifier-ex
 (defz3 mk-forall-const :
   (ctx weight bound-consts patterns body) ::
-  (ctx : _z3-context)
-  (weight : _uint)
-  (_uint = (length bound-consts))
+  (ctx          : _z3-context)
+  (weight       : _uint)
+  (num-bound    : _uint = (length bound-consts))
   (bound-consts : (_list i _z3-app))
-  (_uint = (length patterns))
-  (patterns : (_list i _z3-pattern))
-  (body : _z3-ast)
+  (num-patterns : _uint = (length patterns))
+  (patterns     : (_list i _z3-pattern))
+  (body         : _z3-ast)
   -> _z3-ast)
 (defz3 mk-exists-const :
   (ctx weight bound-consts patterns body) ::
-  (ctx : _z3-context)
-  (weight : _uint)
-  (_uint = (length bound-consts))
+  (ctx          : _z3-context)
+  (weight       : _uint)
+  (num-bound    : _uint = (length bound-consts))
   (bound-consts : (_list i _z3-app))
-  (_uint = (length patterns))
-  (patterns : (_list i _z3-pattern))
-  (body : _z3-ast)
+  (num-patterns : _uint = (length patterns))
+  (patterns     : (_list i _z3-pattern))
+  (body         : _z3-ast)
   -> _z3-ast)
+(defz3 mk-quantifier-const :
+  (ctx forall? weight bound-consts patterns body) ::
+  (ctx : _z3-context)
+  (forall? : _bool)
+  (weight       : _uint)
+  (num-bound    : _uint = (length bound-consts))
+  (bound-consts : (_list i _z3-app))
+  (num-patterns : _uint = (length patterns))
+  (patterns     : (_list i _z3-pattern))
+  (body         : _z3-ast)
+  -> _z3-ast)
+; TODO mk-quantifier-const-ex
 
 ;; -> string functions
 (defz3 ast-to-string : _z3-context _z3-ast -> _string)

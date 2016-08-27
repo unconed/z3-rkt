@@ -61,7 +61,6 @@
   [mk-false (Z3:Context → Z3:Ast)]
   [mk-eq (Z3:Context Z3:Ast Z3:Ast → Z3:Ast)]
   [mk-distinct (Z3:Context Z3:Ast * → Z3:Ast)]
-  [mk-pattern (Z3:Context Z3:Ast Z3:Ast * → Z3:Pattern)]
 
   ;; Boolean operations
   [mk-not (Z3:Context Z3:Ast → Z3:Ast)]
@@ -104,10 +103,20 @@
   [mk-store (Z3:Context Z3:Ast Z3:Ast Z3:Ast → Z3:Ast)]
 
   ;; Quantifiers
+  [mk-pattern (Z3:Context Z3:Ast Z3:Ast * → Z3:Pattern)]
+  [mk-bound (Z3:Context Nonnegative-Fixnum Z3:Sort → Z3:Ast)]
+  [mk-forall
+   (Z3:Context Nonnegative-Fixnum (Listof Z3:Pattern) (Listof (Pairof Z3:Symbol Z3:Sort)) Z3:Ast → Z3:Ast)]
+  [mk-exists
+   (Z3:Context Nonnegative-Fixnum (Listof Z3:Pattern) (Listof (Pairof Z3:Symbol Z3:Sort)) Z3:Ast → Z3:Ast)]
+  [mk-quantifier
+   (Z3:Context Boolean Nonnegative-Fixnum (Listof Z3:Pattern) (Listof (Pairof Z3:Symbol Z3:Sort)) Z3:Ast → Z3:Ast)]
   [mk-forall-const
    (Z3:Context Nonnegative-Fixnum (Listof Z3:App) (Listof Z3:Pattern) Z3:Ast → Z3:Ast)]
   [mk-exists-const
    (Z3:Context Nonnegative-Fixnum (Listof Z3:App) (Listof Z3:Pattern) Z3:Ast → Z3:Ast)]
+  [mk-quantifier-const
+   (Z3:Context Boolean Nonnegative-Fixnum (Listof Z3:App) (Listof Z3:Pattern) Z3:Ast → Z3:Ast)]
 
   ;; → string functions
   [ast-to-string (Z3:Context Z3:Ast → String)]
