@@ -95,7 +95,7 @@
   ;; Uninterpreted constants, functions and applications
   [mk-func-decl (Z3:Context Z3:Symbol (Listof Z3:Sort) Z3:Sort → Z3:Func-Decl)]
   [mk-app (Z3:Context Z3:Func-Decl Z3:Ast * → Z3:Ast)]
-  [mk-const (Z3:Context Z3:Symbol Z3:Sort → Z3:Ast)]
+  [mk-const (Z3:Context Z3:Symbol Z3:Sort → Z3:App)]
   [mk-fresh-func-decl (Z3:Context String (Listof Z3:Sort) Z3:Sort → Z3:Func-Decl)]
   [mk-fresh-const (Z3:Context String Z3:Sort → Z3:App)]
 

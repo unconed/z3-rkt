@@ -252,7 +252,7 @@
   (d        : _z3-func-decl)
   (num-args : _uint = (length args))
   (args     : (_list i _z3-ast)) -> _z3-ast)
-(defz3 mk-const : _z3-context _z3-symbol _z3-sort -> _z3-ast)
+(defz3 mk-const : _z3-context _z3-symbol _z3-sort -> _z3-app)
 (defz3 mk-fresh-func-decl : (ctx prefix dom rng) ::
   (ctx      : _z3-context)
   (prefix   : _string)

@@ -31,9 +31,11 @@
                         [else (error 'param "parameter not set")]))
                 (define-syntax-rule (with-param x e (... ...))
                   (parameterize ([param x]) e (... ...)))))]))
-     (define-z3-parameter context : Z3:Context)
-     (define-z3-parameter solver  : Z3:Solver)
-     (define-z3-parameter env     : Env))
+     )
+  
+  (define-z3-parameter context : Z3:Context)
+  (define-z3-parameter solver  : Z3:Solver)
+  (define-z3-parameter env     : Env)
   
   (define get-context raw:get-context)
   (define get-solver  raw:get-solver)
@@ -220,14 +222,20 @@
   (λ xs
     (define num-xs (length xs))
     (cond [(= n num-xs)
-           (define cur-ctx (get-context))
+           (define ctx (get-context))
            (define args (map expr->_z3-ast xs))
            #;(printf "applying ~a to ~a~n"
-                     (func-decl-to-string cur-ctx f-decl)
+                     (func-decl-to-string ctx f-decl)
                      (for/list : (Listof Sexp) ([arg args])
-                       (define arg-str (ast-to-string cur-ctx arg))
-                       (define sort (sort-to-string cur-ctx (z3-get-sort cur-ctx arg)))
+                       (define arg-str (ast-to-string ctx arg))
+                       (define sort (sort-to-string ctx (z3-get-sort ctx arg)))
                        `(,arg-str : ,sort)))
-           (apply mk-app cur-ctx f-decl args)]
+           (apply mk-app ctx f-decl args)]
           [else
            (error name "expect ~a arguments, given ~a" n num-xs)])))
+
+(: make-symbol : (U Symbol String) → Z3:Symbol)
+;; Helper function to make a symbol with the given name (Racket symbol)
+(define (make-symbol s)
+  (cond [(string? s) (mk-string-symbol (get-context) s)]
+        [else        (make-symbol (format "~a" s))]))

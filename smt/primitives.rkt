@@ -135,18 +135,18 @@
   (syntax-parse stx
     [(_ _ () e) #'e]
     [(_ mk-quant:id ([x:id t] ...) e #:patterns pats)
-     #'(let ([cur-ctx (get-context)])
-         (let ([x (mk-fresh-const cur-ctx
-                                  (symbol->string 'x)
-                                  (assert (sort-expr->_z3-sort 't) z3-sort?))] ...)
+     #'(let ([ctx (get-context)])
+         (let ([x (mk-const ctx
+                            (make-symbol 'x)
+                            (assert (sort-expr->_z3-sort 't) z3-sort?))] ...)
            (define new-vals
              (for/hasheq : (HashTable Symbol Z3:Ast) ([xᵢ (in-list '(x ...))]
                                                       [cᵢ (in-list (list x ...))])
-               (values xᵢ (app-to-ast cur-ctx cᵢ))))
+               (values xᵢ (app-to-ast ctx cᵢ))))
            (define-values (body patterns)
              (with-extended-vals new-vals
                (values (expr->_z3-ast e) pats)))
-           (mk-quant cur-ctx 0 (list x ...) patterns body)))]))
+           (mk-quant ctx 0 (list x ...) patterns body)))]))
 
 (define-simple-macro
   (forall/s ([x:id t] ...) e (~optional (~seq #:patterns pats) #:defaults ([pats #'null])))
@@ -159,19 +159,17 @@
   (match xs*
     ['() e]
     [xs
-     (define cur-ctx (get-context))
+     (define ctx (get-context))
      (define bounds
        (for/list : (Listof Z3:App) ([x xs] [t ts])
-         (mk-fresh-const cur-ctx
-                         (symbol->string x)
-                         (assert (sort-expr->_z3-sort t) z3-sort?))))
+         (mk-const ctx (make-symbol x) (assert (sort-expr->_z3-sort t) z3-sort?))))
      (define new-vals
        (for/hasheq : (HashTable Symbol Z3:Ast) ([x xs] [c bounds])
-         (values x (app-to-ast cur-ctx c))))
+         (values x (app-to-ast ctx c))))
      (define-values (body patterns)
        (with-extended-vals new-vals
          (values (expr->_z3-ast e) pats)))
-     (mk-quant-const cur-ctx 0 bounds patterns body)]))
+     (mk-quant-const ctx 0 bounds patterns body)]))
 
 (define-simple-macro
   (dynamic-forall/s xs ts e (~optional (~seq #:patterns pats) #:defaults ([pats #'null])))

@@ -54,42 +54,27 @@
   (new-sort! id T)
   T)
 
-(: make-symbol : (U Symbol String) → Z3:Symbol)
-;; Helper function to make a symbol with the given name (Racket symbol)
-(define (make-symbol s)
-  (cond [(string? s) (mk-string-symbol (get-context) s)]
-        [else        (make-symbol (format "~a" s))]))
 (define-simple-macro (declare-sort T:id) (dynamic-declare-sort 'T))
-
-(: make-uninterpreted
-   (case-> [String Null Sort-Expr → Z3:Ast]
-           [String (Pairof Sort-Expr (Listof Sort-Expr)) Sort-Expr → Z3:Func]
-           [String (Listof Sort-Expr) Sort-Expr → (U Z3:Ast Z3:Func)]))
-;; Make an uninterpreted function given arg sorts and return sort.
-(define (make-uninterpreted name argsorts retsort)
-  (define cur-ctx (get-context))
-  (define args (cast (map sort-expr->_z3-sort argsorts) (Listof Z3:Sort)))
-  (define ret (assert (sort-expr->_z3-sort retsort) z3-sort?))
-  (cond [(null? argsorts)
-         (app-to-ast cur-ctx (mk-fresh-const cur-ctx name ret))]
-        [else
-         (mk-func (mk-fresh-func-decl cur-ctx name args ret)
-                      (string->symbol name)
-                      (length argsorts))]))
 
 (: dynamic-declare-fun
    (case-> [Symbol Null Sort-Expr → Z3:Ast]
            [Symbol (Pairof Sort-Expr (Listof Sort-Expr)) Sort-Expr → Z3:Func]
            [Symbol (Listof Sort-Expr) Sort-Expr → (U Z3:Ast Z3:Func)]))
 ;; Declare a new function. Each `D` is a sort-expr.
-(define (dynamic-declare-fun f-id doms rng)
+(define (dynamic-declare-fun f-id dom rng)
+  (define ctx (get-context))
+  (define name (make-symbol f-id))
+  (define rng-sort (assert (sort-expr->_z3-sort rng) z3-sort?))
   (cond
-    [(null? doms)
-     (define v (make-uninterpreted (symbol->string f-id) '() rng))
+    [(null? dom)
+     (define v (app-to-ast ctx (mk-const ctx name rng-sort)))
      (set-val! f-id v)
      v]
     [else
-     (define v (make-uninterpreted (symbol->string f-id) doms rng))
+     (define dom-sorts (cast (map sort-expr->_z3-sort dom) (Listof Z3:Sort)))
+     (define v (mk-func (mk-func-decl ctx name dom-sorts rng-sort)
+                        f-id
+                        (length dom)))
      (set-fun! f-id v)
      v]))
 
