@@ -186,7 +186,7 @@
      #'(let ([ctx (get-context)])
          (let ([x (mk-const ctx
                             (make-symbol 'x)
-                            (assert (sort-expr->_z3-sort 't) z3-sort?))] ...)
+                            (assert (sort-expr->_z3-sort t) z3-sort?))] ...)
            (define new-vals
              (for/hasheq : (HashTable Symbol Z3:Ast) ([xᵢ (in-list '(x ...))]
                                                       [cᵢ (in-list (list x ...))])

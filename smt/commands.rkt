@@ -86,11 +86,11 @@
 (define-simple-macro (declare-const c:id T) (declare-fun c () T))
 
 (: constr->_z3-constructor :
-   (Setof Symbol) Symbol (Listof (List Symbol (U Symbol Z3:Sort))) → Z3:Constructor)
+   (Setof Symbol) Symbol (Listof (List Symbol Sort-Expr)) → Z3:Constructor)
 (define (constr->_z3-constructor recursive-sort-names k field-list)
   (define names-sorts-refs
     (for/list : (Listof (List Z3:Symbol (U Z3:Sort Z3:Null) Nonnegative-Fixnum))
-              ([field : (List Symbol (U Symbol Z3:Sort)) field-list])
+              ([field : (List Symbol Sort-Expr) field-list])
       (match-define (list x t) field)
       (define nameᵢ (make-symbol x))
       (define sortᵢ
@@ -160,7 +160,7 @@
 (begin-for-syntax
   (define-syntax-class fld
     #:description "field"
-    (pattern (name:id typ:id)))
+    (pattern (name:id typ)))
 
   (define-syntax-class variant
     #:description "datatype variant"
@@ -202,7 +202,12 @@
            #,@(for/list ([con-K      (in-list con-Ks)]
                          [K          (in-list Ks)]
                          [field-list (in-list field-lists)])
-                #`(define #,con-K (constr->_z3-constructor {seteq 'T} '#,K '#,field-list)))
+                (let ([fields
+                       (for/list ([field-dec field-list])
+                         (syntax-parse field-dec
+                           [(x:id t) #'(list 'x t)]))])
+                  #`(define #,con-K
+                      (constr->_z3-constructor {seteq 'T} '#,K (list #,@fields)))))
            
            ;; define datatype
            (define T (mk-datatype cur-ctx (make-symbol 'T) (list #,@con-Ks)))
