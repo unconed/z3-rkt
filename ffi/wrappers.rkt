@@ -239,21 +239,27 @@
 ;; Numerals
 (defz3 mk-numeral : _z3-context _string _z3-sort -> _z3-ast)
 
-;; Uninterpreted constants, functions and applications
-(defz3 mk-fresh-func-decl : (ctx prefix domain range) ::
-  (ctx : _z3-context)
-  (prefix : _string)
-  (_uint = (length domain))
-  (domain : (_list i _z3-sort))
-  (range : _z3-sort)
+;; Constants and Applications
+(defz3 mk-func-decl : (ctx name dom rng) ::
+  (ctx      : _z3-context)
+  (name     : _z3-symbol)
+  (dom-size : _uint = (length dom))
+  (dom      : (_list i _z3-sort))
+  (rng      : _z3-sort)
   -> _z3-func-decl)
-
 (defz3 mk-app : (ctx d . args) ::
-  (ctx : _z3-context)
-  (d : _z3-func-decl)
-  (_uint = (length args))
-  (args : (_list i _z3-ast)) -> _z3-ast)
-
+  (ctx      : _z3-context)
+  (d        : _z3-func-decl)
+  (num-args : _uint = (length args))
+  (args     : (_list i _z3-ast)) -> _z3-ast)
+(defz3 mk-const : _z3-context _z3-symbol _z3-sort -> _z3-ast)
+(defz3 mk-fresh-func-decl : (ctx prefix dom rng) ::
+  (ctx      : _z3-context)
+  (prefix   : _string)
+  (dom-size : _uint = (length dom))
+  (dom      : (_list i _z3-sort))
+  (rng      : _z3-sort)
+  -> _z3-func-decl)
 (defz3 mk-fresh-const : _z3-context _string _z3-sort -> _z3-app)
 
 ;; Array operations

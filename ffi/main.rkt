@@ -52,6 +52,7 @@
   [mk-datatype (Z3:Context Z3:Symbol (Listof Z3:Constructor) → Z3:Sort)]
   [mk-constructor-list (Z3:Context (Listof Z3:Constructor) → Z3:Constructor-List)]
   [del-constructor-list (Z3:Context Z3:Constructor-List → Void)]
+  [mk-datatypes (Z3:Context (Listof (Pairof Z3:Symbol Z3:Constructor-List)) → (Listof Z3:Sort))]
   [query-constructor
    (Z3:Context Z3:Constructor Nonnegative-Fixnum →
                (Values Z3:Func-Decl Z3:Func-Decl (Listof Z3:Func-Decl)))]
@@ -92,8 +93,10 @@
   [mk-numeral (Z3:Context String Z3:Sort → Z3:Ast)]
 
   ;; Uninterpreted constants, functions and applications
-  [mk-fresh-func-decl (Z3:Context String (Listof Z3:Sort) Z3:Sort → Z3:Func-Decl)]
+  [mk-func-decl (Z3:Context Z3:Symbol (Listof Z3:Sort) Z3:Sort → Z3:Func-Decl)]
   [mk-app (Z3:Context Z3:Func-Decl Z3:Ast * → Z3:Ast)]
+  [mk-const (Z3:Context Z3:Symbol Z3:Sort → Z3:Ast)]
+  [mk-fresh-func-decl (Z3:Context String (Listof Z3:Sort) Z3:Sort → Z3:Func-Decl)]
   [mk-fresh-const (Z3:Context String Z3:Sort → Z3:App)]
 
   ;; Array operations
