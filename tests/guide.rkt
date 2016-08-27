@@ -191,3 +191,92 @@
    (check-sat))
  'unsat)
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; Bitvectors
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; Arrays
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(check-equal?
+ (with-new-context ()
+   (declare-const x Int/s)
+   (declare-const y Int/s)
+   (declare-const z Int/s)
+   (declare-const a1 (Array/s Int/s Int/s))
+   (declare-const a2 (Array/s Int/s Int/s))
+   (declare-const a3 (Array/s Int/s Int/s))
+   (assert! (=/s (select/s a1 x) x))
+   (assert! (=/s (store/s a1 x y) a1))
+   (check-sat)) ; TODO get-model
+ 'sat)
+
+(check-equal?
+ (with-new-context ()
+   (declare-const x Int/s)
+   (declare-const y Int/s)
+   (declare-const z Int/s)
+   (declare-const a1 (Array/s Int/s Int/s))
+   (declare-const a2 (Array/s Int/s Int/s))
+   (declare-const a3 (Array/s Int/s Int/s))
+   (assert! (=/s (select/s a1 x) x))
+   (assert! (=/s (store/s a1 x y) a1))
+   (assert! (not/s (=/s x y)))
+   (check-sat))
+ 'unsat)
+
+;; TODO Constant Arrays
+;; TODO Mapping Functions on Arrays
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; Datatypes
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; TODO records (parameterized)
+
+(with-new-context ()
+  (declare-datatypes () ((S A B C)))
+  (declare-const x S)
+  (declare-const y S)
+  (declare-const z S)
+  (declare-const u S)
+  (assert! (distinct/s x y z))
+  (check-equal? (check-sat) 'sat)
+  (assert! (distinct/s x y z u))
+  (check-equal? (check-sat) 'unsat))
+
+;; TODO Recursive datatypes (parameterized)
+
+;; TODO: Mutually recursive datatypes (parameterized)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; Quantifiers
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(check-equal?
+ (with-new-context ()
+   (declare-sort Type)
+   (declare-fun subtype (Type Type) Bool/s)
+   (declare-fun array-of (Type) Type)
+   (assert! (∀/s ((x Type)) (subtype x x)))
+   (assert! (∀/s ((x Type) (y Type) (z Type))
+                 (=>/s (and/s (subtype x y) (subtype y z)) 
+                       (subtype x z)))) 
+   (assert! (∀/s ((x Type) (y Type))
+                 (=>/s (and/s (subtype x y) (subtype y x)) 
+                       (=/s x y))))
+   (assert! (∀/s ((x Type) (y Type) (z Type))
+                 (=>/s (and/s (subtype x y) (subtype x z)) 
+                       (or/s (subtype y z) (subtype z y))))) 
+   (assert! (∀/s ((x Type) (y Type))
+                 (=>/s (subtype x y) 
+                       (subtype (array-of x) (array-of y)))))
+   (declare-const root-type Type)
+   (assert! (∀/s ((x Type)) (subtype x root-type)))
+   (check-sat))
+ 'sat)

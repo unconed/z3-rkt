@@ -105,6 +105,19 @@
   [mk-map (Z3:Context Z3:Func-Decl Z3:Ast * → Z3:Ast)]
   [mk-array-default (Z3:Context Z3:Ast → Z3:Ast)]
 
+  ;; Sets
+  [mk-set-sort (Z3:Context Z3:Sort → Z3:Sort)]
+  [mk-empty-set (Z3:Context Z3:Sort → Z3:Ast)]
+  [mk-full-set (Z3:Context Z3:Sort → Z3:Ast)]
+  [mk-set-add (Z3:Context Z3:Ast Z3:Ast → Z3:Ast)]
+  [mk-set-del (Z3:Context Z3:Ast Z3:Ast → Z3:Ast)]
+  [mk-set-union (Z3:Context Z3:Ast * → Z3:Ast)]
+  [mk-set-intersect (Z3:Context Z3:Ast * → Z3:Ast)]
+  [mk-set-difference (Z3:Context Z3:Ast Z3:Ast → Z3:Ast)]
+  [mk-set-complement (Z3:Context Z3:Ast → Z3:Ast)]
+  [mk-set-member (Z3:Context Z3:Ast Z3:Ast → Z3:Ast)]
+  [mk-set-subset (Z3:Context Z3:Ast Z3:Ast → Z3:Ast)]
+
   ;; Quantifiers
   [mk-pattern (Z3:Context Z3:Ast Z3:Ast * → Z3:Pattern)]
   [mk-bound (Z3:Context Nonnegative-Fixnum Z3:Sort → Z3:Ast)]

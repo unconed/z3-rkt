@@ -26,8 +26,8 @@
     #:description "function arity (natural or *)"
     (pattern (~or n:nat (~literal *) (~literal lassoc) (~literal rassoc)))))
 
-(define-syntax (define-builtin-symbol stx)
-  (syntax-parse stx
+(define-syntax define-builtin-symbol
+  (syntax-parser
     [(_ x:id v:id)
      (with-syntax ([x/c (add-smt-suffix #'x)])
        #'(begin
@@ -35,6 +35,20 @@
              (syntax-parser
                [c #:when (identifier? #'c) #'(v (get-context))]))
            (provide x/c)))]))
+
+(define-syntax define-builtin-sort-proc
+  (syntax-parser
+    [(_ f:id v:id n:nat)
+     (with-syntax ([f/c (add-smt-suffix #'f)]
+                   [(x ...)
+                    (datum->syntax
+                     #f
+                     (for/list ([i (syntax-e #'n)])
+                       (format-id #f "x~a" i)))])
+       #'(begin
+           (define (f/c [x : Sort-Expr] ...)
+             (v (get-context) (sort-expr->_z3-sort x) ...))
+           (provide f/c)))]))
 
 (define-syntax (define-builtin-proc stx)
   (syntax-parse stx
@@ -45,8 +59,8 @@
           (with-syntax ([(x ...)
                          (datum->syntax
                           #f
-                          (build-list (syntax->datum #'k)
-                                      (λ (i) (format-id #f "x~a" i))))])
+                          (for/list ([i (syntax-e #'k)])
+                            (format-id #f "x~a" i)))])
             #'(begin
                 (define (f/s [x : Expr] ...)
                   #;(printf "Applying ~a to ~a~n"
@@ -103,6 +117,8 @@
 (define-builtin-symbol Int mk-int-sort)
 (define-builtin-symbol Real mk-real-sort)
 (define-builtin-symbol Bool mk-bool-sort)
+(define-builtin-sort-proc Array mk-array-sort 2)
+(define-builtin-sort-proc Set mk-set-sort 1)
 
 ;; Builtin symbols
 (define-builtin-proc = mk-eq 2)
@@ -132,9 +148,21 @@
 (define-builtin-proc > mk-gt 2)
 (define-builtin-proc >= mk-ge 2)
 
-;; Array operations
+;; Arrays
 (define-builtin-proc select mk-select 2)
 (define-builtin-proc store mk-store 3)
+
+;; Sets
+(define-builtin-sort-proc empty mk-empty-set 1)
+(define-builtin-sort-proc full mk-full-set 1)
+(define-builtin-proc add mk-set-add 2)
+(define-builtin-proc del mk-set-del 2)
+(define-builtin-proc union mk-set-union *)
+(define-builtin-proc intersect mk-set-intersect *)
+(define-builtin-proc difference mk-set-difference 2)
+(define-builtin-proc complement mk-set-complement 1)
+(define-builtin-proc member mk-set-member 2)
+(define-builtin-proc subset mk-set-subset 2)
 
 ;; Apply
 (: @/s : Symbol Expr * → Z3:Ast)
@@ -201,10 +229,4 @@
 (provide forall/s (rename-out [forall/s ∀/s])
          exists/s (rename-out [exists/s ∃/s])
          dynamic-forall/s (rename-out [dynamic-forall/s dynamic-∀/s])
-         dynamic-exists/s (rename-out [dynamic-exists/s dynamic-∃/s])
-         false/s
-         true/s
-         Int/s
-         Real/s
-         Bool/s
-         Array/s)
+         dynamic-exists/s (rename-out [dynamic-exists/s dynamic-∃/s]))

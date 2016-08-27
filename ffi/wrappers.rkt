@@ -272,6 +272,19 @@
   -> _z3-ast)
 (defz3 mk-array-default : _z3-context _z3-ast -> _z3-ast)
 
+;; Sets
+(defz3 mk-set-sort : _z3-context _z3-sort -> _z3-sort)
+(defz3 mk-empty-set : _z3-context _z3-sort -> _z3-ast)
+(defz3 mk-full-set : _z3-context _z3-sort -> _z3-ast)
+(defz3 mk-set-add : _z3-context _z3-ast _z3-ast -> _z3-ast)
+(defz3 mk-set-del : _z3-context _z3-ast _z3-ast -> _z3-ast)
+(define-nary mk-set-union : _z3-ast -> _z3-ast)
+(define-nary mk-set-intersect : _z3-ast -> _z3-ast)
+(defz3 mk-set-difference : _z3-context _z3-ast _z3-ast -> _z3-ast)
+(defz3 mk-set-complement : _z3-context _z3-ast -> _z3-ast)
+(defz3 mk-set-member : _z3-context _z3-ast _z3-ast -> _z3-ast)
+(defz3 mk-set-subset : _z3-context _z3-ast _z3-ast -> _z3-ast)
+
 ;; Quantifiers
 (defz3 mk-pattern : (ctx t . ts) ::
   (ctx  : _z3-context)

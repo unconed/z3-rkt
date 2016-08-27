@@ -149,14 +149,6 @@
   (define sort-funs (Env-sort-funs env))
   (set-Env-sort-funs! env (hash-set sort-funs id v)))
 
-;; Primitive sort constructors
-(define Array/s : Z3:Sort-Func
-  (match-lambda*
-   [(list dom rng)
-    (mk-array-sort (get-context) (sort-expr->_z3-sort dom) (sort-expr->_z3-sort rng))]
-   [xs
-    (error 'Array/s "expect 2 sorts, given ~a: ~a" (length xs) xs)]))
-
 (: init-env : Z3:Context → Env)
 (define (init-env ctx)
   (Env (hasheq) (hasheq) (hasheq) (hasheq)))
