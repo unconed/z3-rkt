@@ -3,6 +3,14 @@
 (require racket/match
          "types.rkt")
 
+;; TODO: Hmm for some reason this makes it slower (slight, but measurable)
+(begin
+  (require typed/racket/unsafe)
+  (define-syntax-rule (unsafe-require/typed/provide path [x t] ...)
+    (begin
+      (unsafe-require/typed path [x t] ...)
+      (unsafe-provide x ...))))
+
 (require/typed/provide "wrappers.rkt"
   [global-param-set! (Global-Param String → Void)]
   [global-param-get (Global-Param → String)]
