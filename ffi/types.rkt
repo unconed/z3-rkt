@@ -9,6 +9,11 @@
                               'no-parser 'invalid-pattern 'memout-fail
                               'file-access-error 'invalid-usage
                               'internal-fatal 'dec-ref-error))
+(define-type Z3:Ast-Print-Mode (U 'print-smtlib-full
+                                  'print-low-level
+                                  'print-smtlib-compliant
+                                  'print-smtlib2-compliant))
+(define-type Z3:Param-Kind (U 'uint 'bool 'double 'symbol 'string 'other 'invalid))
 (define-type Global-Param
   (U "auto_config"
      "debug_ref_count"
@@ -30,7 +35,7 @@
      "warning"
      "well_sorted_check"))
 
-(require/typed/provide "wrappers.rkt"
+[require/typed/provide "wrappers.rkt"
   [#:opaque Z3:Config  z3-config?]
   [#:opaque Z3:Context z3-context?]
   [#:opaque Z3:Solver      z3-solver?]
@@ -45,6 +50,10 @@
   [#:opaque Z3:Stats       z3-stats?]
   [#:opaque Z3:Ast-Vector  z3-ast-vector?]
   [#:opaque Z3:Constructor-List z3-constructor-list?]
+  [#:opaque Z3:Func-Interp z3-func-interp?]
+  [#:opaque Z3:Func-Entry  z3-func-entry?]
+  [#:opaque Z3:Params      z3-params?]
+  [#:opaque Z3:Param-Descrs z3-param-descrs?]
   [#:opaque Z3:Null        z3-null?]
   [#:struct list-instance ([sort : Z3:Sort]
                            [nil : Z3:Func-Decl]
@@ -52,7 +61,7 @@
                            [cons : Z3:Func-Decl]
                            [is-cons : Z3:Func-Decl]
                            [head : Z3:Func-Decl]
-                           [tail : Z3:Func-Decl])])
+                           [tail : Z3:Func-Decl])]]
 
 (define-type Z3:Func (Expr * → Z3:Ast))
 (define-type Expr (U Z3:Ast Z3:App Real Symbol))

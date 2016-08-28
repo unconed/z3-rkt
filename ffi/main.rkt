@@ -4,7 +4,6 @@
          "types.rkt")
 
 (require/typed/provide "wrappers.rkt"
-  [toggle-warning-messages! (Boolean → Void)]
   [global-param-set! (Global-Param String → Void)]
   [global-param-get (Global-Param → String)]
   
@@ -20,15 +19,19 @@
   [mk-simple-solver (Z3:Context → Z3:Solver)]
   [mk-solver-for-logic (Z3:Context Z3:Symbol → Z3:Solver)]
   [solver-get-help (Z3:Context Z3:Solver → String)]
+  [solver-get-param-descrs (Z3:Context Z3:Solver → Z3:Param-Descrs)]
+  [solver-set-params! (Z3:Context Z3:Solver Z3:Params → Void)]
   [solver-inc-ref! (Z3:Context Z3:Solver → Void)]
   [solver-dec-ref! (Z3:Context Z3:Solver → Void)]
   [solver-push! (Z3:Context Z3:Solver → Void)]
   [solver-pop! (Z3:Context Z3:Solver Nonnegative-Fixnum -> Void)]
   [solver-reset! (Z3:Context Z3:Solver → Void)]
+  [solver-get-num-scopes (Z3:Context Z3:Solver → Nonnegative-Fixnum)]
   [solver-assert! (Z3:Context Z3:Solver Z3:Ast → Void)]
   [solver-assert-and-track! (Z3:Context Z3:Solver Z3:Ast Z3:Ast → Void)]
   [solver-get-assertions (Z3:Context Z3:Solver → Z3:Ast-Vector)]
   [solver-check (Z3:Context Z3:Solver → Z3:LBool)]
+  [solver-check-assumptions (Z3:Context Z3:Solver (Listof Z3:Ast) → Z3:LBool)]
   [solver-get-model (Z3:Context Z3:Solver → Z3:Model)]
   [solver-get-proof (Z3:Context Z3:Solver → Z3:Ast)]
   [solver-get-unsat-core (Z3:Context Z3:Solver → Z3:Ast-Vector)]
@@ -37,6 +40,25 @@
   [solver-to-string (Z3:Context Z3:Solver → String)]
   
   [mk-string-symbol (Z3:Context String → Z3:Symbol)]
+
+  ;; Parameters
+  [mk-params (Z3:Context → Z3:Params)]
+  [params-inc-ref! (Z3:Context Z3:Params → Void)]
+  [params-dec-ref! (Z3:Context Z3:Params → Void)]
+  [params-set-bool! (Z3:Context Z3:Params Z3:Symbol Boolean → Void)]
+  [params-set-uint! (Z3:Context Z3:Params Z3:Symbol Nonnegative-Fixnum → Void)]
+  [params-set-double! (Z3:Context Z3:Params Z3:Symbol Inexact-Real → Void)]
+  [params-set-symbol! (Z3:Context Z3:Params Z3:Symbol Z3:Symbol → Void)]
+  [params-to-string (Z3:Context Z3:Params → String)]
+  [params-validate! (Z3:Context Z3:Params Z3:Param-Descrs → Void)]
+
+  ;; Parameter Descriptions
+  [param_descrs-inc-ref! (Z3:Context Z3:Param-Descrs → Void)]
+  [param_descrs-dec-ref! (Z3:Context Z3:Param-Descrs → Void)]
+  [param-descrs-get-kind (Z3:Context Z3:Param-Descrs Z3:Symbol → Z3:Param-Kind)]
+  [param-descrs-size (Z3:Context Z3:Param-Descrs → Nonnegative-Fixnum)]
+  [param-descrs-get-name (Z3:Context Z3:Param-Descrs Nonnegative-Fixnum → Z3:Symbol)]
+  [param-descrs-to-string (Z3:Context Z3:Param-Descrs → String)]
 
   ;; Sorts
   [mk-uninterpreted-sort (Z3:Context Z3:Symbol → Z3:Sort)]
@@ -134,11 +156,32 @@
   [mk-quantifier-const
    (Z3:Context Boolean Nonnegative-Fixnum (Listof Z3:App) (Listof Z3:Pattern) Z3:Ast → Z3:Ast)]
 
-  ;; → string functions
+  ;; String conversion
+  [set-ast-print-mode! (Z3:Context Z3:Ast-Print-Mode → Void)]
   [ast-to-string (Z3:Context Z3:Ast → String)]
-  [model-to-string (Z3:Context Z3:Model → String)]
+  [pattern-to-string (Z3:Context Z3:Pattern → String)]
   [sort-to-string (Z3:Context Z3:Sort → String)]
   [func-decl-to-string (Z3:Context Z3:Func-Decl → String)]
+  [model-to-string (Z3:Context Z3:Model → String)]
+
+  ;; Parser interface
+  [parse-smtlib2-string
+   (Z3:Context String (Listof (Pairof Z3:Symbol Z3:Sort)) (Listof (Pairof Z3:Symbol Z3:Func-Decl)) → Z3:Ast)]
+  [parse-smtlib2-file
+   (Z3:Context String (Listof (Pairof Z3:Symbol Z3:Sort)) (Listof (Pairof Z3:Symbol Z3:Func-Decl)) → Z3:Ast)]
+  [parse-smtlib-string!
+   (Z3:Context String (Listof (Pairof Z3:Symbol Z3:Sort)) (Listof (Pairof Z3:Symbol Z3:Func-Decl)) → Void)]
+  [parse-smtlib-file!
+   (Z3:Context String (Listof (Pairof Z3:Symbol Z3:Sort)) (Listof (Pairof Z3:Symbol Z3:Func-Decl)) → Void)]
+  [get-smtlib-num-formulas (Z3:Context → Nonnegative-Fixnum)]
+  [get-smtlib-formula (Z3:Context Nonnegative-Fixnum → Z3:Ast)]
+  [get-smtlib-num-assumptions (Z3:Context → Nonnegative-Fixnum)]
+  [get-smtlib-assumption (Z3:Context Nonnegative-Fixnum → Z3:Ast)]
+  [get-smtlib-num-decls (Z3:Context → Nonnegative-Fixnum)]
+  [get-smtlib-decl (Z3:Context Nonnegative-Fixnum → Z3:Func-Decl)]
+  [get-smtlib-num-sorts (Z3:Context → Nonnegative-Fixnum)]
+  [get-smtlib-sort (Z3:Context Nonnegative-Fixnum → Z3:Sort)]
+  [get-smtlib-error (Z3:Context → String)]
 
   ;; error handling functions
   [get-error-code (Z3:Context → Z3:Error-Code)]
@@ -158,15 +201,35 @@
   [model-inc-ref! (Z3:Context Z3:Model → Void)]
   [model-dec-ref! (Z3:Context Z3:Model → Void)]
   [model-eval (Z3:Context Z3:Model Z3:Ast Boolean → (Option Z3:Ast))]
-  [model-get-const-decl (Z3:Context Z3:Model Nonnegative-Fixnum → Z3:Func-Decl)]
   [model-get-const-interp (Z3:Context Z3:Model Z3:Func-Decl → Z3:Ast)]
-  [model-get-func-decl (Z3:Context Z3:Model Nonnegative-Fixnum → Z3:Func-Decl)]
-  [model-get-func-interp (Z3:Context Z3:Model Z3:Func-Decl → (Option Z3:Func-Decl))]
+  [model-has-interp? (Z3:Context Z3:Model Z3:Func-Decl → Boolean)]
+  [model-get-func-interp (Z3:Context Z3:Model Z3:Func-Decl → (Option Z3:Func-Interp))]
   [model-get-num-consts (Z3:Context Z3:Model → Nonnegative-Fixnum)]
+  [model-get-const-decl (Z3:Context Z3:Model Nonnegative-Fixnum → Z3:Func-Decl)]
   [model-get-num-funcs (Z3:Context Z3:Model → Nonnegative-Fixnum)]
+  [model-get-func-decl (Z3:Context Z3:Model Nonnegative-Fixnum → Z3:Func-Decl)]
   [model-get-num-sorts (Z3:Context Z3:Model → Nonnegative-Fixnum)]
   [model-get-sort (Z3:Context Z3:Model Nonnegative-Fixnum → Z3:Sort)]
-  [model-has-interp (Z3:Context Z3:Model Z3:Func-Decl → Boolean)]
+  [model-get-sort-universe (Z3:Context Z3:Model Z3:Sort → Z3:Ast-Vector)]
+  [is-as-array? (Z3:Context Z3:Ast → Boolean)]
+  [get-as-array-func-decl (Z3:Context Z3:Ast → Z3:Func-Decl)]
+  [func-interp-inc-ref! (Z3:Context Z3:Func-Interp → Void)]
+  [func-interp-dec-ref! (Z3:Context Z3:Func-Interp → Void)]
+  [func-interp-get-num-entries (Z3:Context Z3:Func-Interp → Nonnegative-Fixnum)]
+  [func-interp-get-entry (Z3:Context Z3:Func-Interp Nonnegative-Fixnum → Z3:Func-Entry)]
+  [func-interp-get-else (Z3:Context Z3:Func-Interp → Z3:Ast)]
+  [func-interp-get-arity (Z3:Context Z3:Func-Interp → Nonnegative-Fixnum)]
+  [func-entry-inc-ref! (Z3:Context Z3:Func-Entry → Void)]
+  [func-entry-dec-ref! (Z3:Context Z3:Func-Entry → Void)]
+  [func-entry-get-value (Z3:Context Z3:Func-Entry → Z3:Ast)]
+  [func-entry-get-num-args (Z3:Context Z3:Func-Entry → Nonnegative-Fixnum)]
+  [func-entry-get-arg (Z3:Context Z3:Func-Entry Nonnegative-Fixnum → Z3:Ast)]
+
+  ;; Interaction logging
+  [open-log (String → Boolean)]
+  [append-log! (String → Void)]
+  [close-log! (→ Boolean)]
+  [toggle-warning-messages! (Boolean → Void)]
 
   ;; Statistics
   [stats-to-string (Z3:Context Z3:Stats → String)]
@@ -190,6 +253,14 @@
   [ast-vector-push! (Z3:Context Z3:Ast-Vector Z3:Ast → Void)]
   [ast-vector-translate (Z3:Context Z3:Ast-Vector Z3:Context → Z3:Ast-Vector)]
   [ast-vector-to-string (Z3:Context Z3:Ast-Vector → String)]
+
+  ;; Miscellaneous
+  [get-version
+   (→ (Values Nonnegative-Fixnum Nonnegative-Fixnum Nonnegative-Fixnum Nonnegative-Fixnum))]
+  [enable-trace! (String → Void)]
+  [disable-trace! (String → Void)]
+  [reset-memory! (→ Void)]
+  [finalize-memory! (→ Void)]
   )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

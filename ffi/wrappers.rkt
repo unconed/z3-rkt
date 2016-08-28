@@ -72,6 +72,10 @@
 (define-cpointer-type _z3-stats      ) (provide z3-stats?)
 (define-cpointer-type _z3-ast-vector ) (provide z3-ast-vector?)
 (define-cpointer-type _z3-constructor-list) (provide z3-constructor-list?)
+(define-cpointer-type _z3-func-interp) (provide z3-func-interp?)
+(define-cpointer-type _z3-func-entry ) (provide z3-func-entry? )
+(define-cpointer-type _z3-params     ) (provide z3-params?)
+(define-cpointer-type _z3-param-descrs)(provide z3-param-descrs?)
 (define z3-null #f)
 (define z3-null? not)
 (provide z3-null z3-null?)
@@ -84,10 +88,13 @@
                                    no-parser invalid-pattern memout-fail
                                    file-access-error invalid-usage
                                    internal-fatal dec-ref-error) _int32))
-
 (define _z3-error-handler (_fun #:keep #t _int -> _void))
-
-(defz3 toggle-warning-messages! : _bool -> _void)
+(define _z3-ast-print-mode (_enum '(print-smtlib-full
+                                    print-low-level
+                                    print-smtlib-compliant
+                                    print-smtlib2-compliant)
+                                  _int32))
+(define _z3-param-kind (_enum '(uint bool double symbol string other invalid) _int32))
 
 ;; Deallocators
 (defz3 del-config  : _z3-config  -> _void)
@@ -112,19 +119,24 @@
 (defz3 mk-solver-for-logic : _z3-context _z3-symbol -> _z3-solver)
 ; TODO: mk-solver-from-tactic
 (defz3 solver-get-help : _z3-context _z3-solver -> _string)
-; TODO: solver-get-param-descrs
-; TODO: solver-set-params
+(defz3 solver-get-param-descrs : _z3-context _z3-solver -> _z3-param-descrs)
+(defz3 solver-set-params! : _z3-context _z3-solver _z3-params -> _void)
 (defz3 solver-inc-ref! : _z3-context _z3-solver -> _void)
 (defz3 solver-dec-ref! : _z3-context _z3-solver -> _void)
 (defz3 solver-push! : _z3-context _z3-solver -> _void)
 (defz3 solver-pop! : _z3-context _z3-solver _uint -> _void)
 (defz3 solver-reset! : _z3-context _z3-solver -> _void)
-; TODO: solver-get-num-scopes
+(defz3 solver-get-num-scopes : _z3-context _z3-solver -> _uint)
 (defz3 solver-assert! : _z3-context _z3-solver _z3-ast -> _void)
 (defz3 solver-assert-and-track! : _z3-context _z3-solver _z3-ast _z3-ast -> _void)
 (defz3 solver-get-assertions : _z3-context _z3-solver -> _z3-ast-vector)
 (defz3 solver-check : _z3-context _z3-solver -> _z3-lbool)
-; TODO: solver-check-assumptions
+(defz3 solver-check-assumptions : (ctx slvr assumptions) ::
+  (ctx  : _z3-context)
+  (slvr : _z3-solver)
+  (num-assumptions : _uint = (length assumptions))
+  (assumptions : (_list i _z3-ast))
+  -> _z3-lbool)
 (defz3 solver-get-model : _z3-context _z3-solver -> _z3-model)
 (defz3 solver-get-proof : _z3-context _z3-solver -> _z3-ast)
 (defz3 solver-get-unsat-core : _z3-context _z3-solver -> _z3-ast-vector)
@@ -133,6 +145,26 @@
 (defz3 solver-to-string : _z3-context _z3-solver -> _string)
 
 (defz3 mk-string-symbol : _z3-context _string -> _z3-symbol)
+
+;; Parameters
+(defz3 mk-params : _z3-context -> _z3-params)
+(defz3 params-inc-ref! : _z3-context _z3-params -> _void)
+(defz3 params-dec-ref! : _z3-context _z3-params -> _void)
+(defz3 params-set-bool! : _z3-context _z3-params _z3-symbol _bool -> _void)
+(defz3 params-set-uint! : _z3-context _z3-params _z3-symbol _uint -> _void)
+(defz3 params-set-double! : _z3-context _z3-params _z3-symbol _double -> _void)
+(defz3 params-set-symbol! : _z3-context _z3-params _z3-symbol _z3-symbol -> _void)
+(defz3 params-to-string : _z3-context _z3-params -> _string)
+(defz3 params-validate! : _z3-context _z3-params _z3-param-descrs -> _void)
+
+;; Parameter Descriptions
+(defz3 param_descrs-inc-ref! : _z3-context _z3-param-descrs -> _void)
+(defz3 param_descrs-dec-ref! : _z3-context _z3-param-descrs -> _void)
+(defz3 param-descrs-get-kind : _z3-context _z3-param-descrs _z3-symbol -> _z3-param-kind)
+(defz3 param-descrs-size : _z3-context _z3-param-descrs -> _uint)
+(defz3 param-descrs-get-name : _z3-context _z3-param-descrs _uint -> _z3-symbol)
+(defz3 param-descrs-to-string : _z3-context _z3-param-descrs -> _string)
+
 
 ;; Sorts
 (defz3 mk-uninterpreted-sort : _z3-context _z3-symbol -> _z3-sort)
@@ -357,11 +389,65 @@
   -> _z3-ast)
 ; TODO mk-quantifier-const-ex
 
-;; -> string functions
+;; String conversion
+(defz3 set-ast-print-mode! : _z3-context _z3-ast-print-mode -> _void)
 (defz3 ast-to-string : _z3-context _z3-ast -> _string)
-(defz3 model-to-string : _z3-context _z3-model -> _string)
+(defz3 pattern-to-string : _z3-context _z3-pattern -> _string)
 (defz3 sort-to-string : _z3-context _z3-sort -> _string)
 (defz3 func-decl-to-string : _z3-context _z3-func-decl -> _string)
+(defz3 model-to-string : _z3-context _z3-model -> _string)
+; TODO benchmark-to-smtlib-string
+
+;; Parser interface
+(defz3 parse-smtlib2-string : (ctx str sorts decls) ::
+  (ctx : _z3-context)
+  (str : _string)
+  (num-sorts : _uint = (length sorts))
+  (sort-names : (_list i _z3-symbol) = (map car sorts))
+  (sort-vals  : (_list i _z3-sort) = (map cdr sorts))
+  (num-decls  : _uint = (length decls))
+  (decl-names : (_list i _z3-symbol) = (map car decls))
+  (decl-vals  : (_list i _z3-func-decl) = (map cdr decls))
+  -> _z3-ast)
+(defz3 parse-smtlib2-file : (ctx fn sorts decls) ::
+  (ctx : _z3-context)
+  (fn  : _string)
+  (num-sorts : _uint = (length sorts))
+  (sort-names : (_list i _z3-symbol) = (map car sorts))
+  (sort-vals  : (_list i _z3-sort) = (map cdr sorts))
+  (num-decls  : _uint = (length decls))
+  (decl-names : (_list i _z3-symbol) = (map car decls))
+  (decl-vals  : (_list i _z3-func-decl) = (map cdr decls))
+  -> _z3-ast)
+(defz3 parse-smtlib-string! : (ctx str sorts decls) ::
+  (ctx : _z3-context)
+  (str : _string)
+  (num-sorts : _uint = (length sorts))
+  (sort-names : (_list i _z3-symbol) = (map car sorts))
+  (sort-vals  : (_list i _z3-sort) = (map cdr sorts))
+  (num-decls  : _uint = (length decls))
+  (decl-names : (_list i _z3-symbol) = (map car decls))
+  (decl-vals  : (_list i _z3-func-decl) = (map cdr decls))
+  -> _void)
+(defz3 parse-smtlib-file! : (ctx fn sorts decls) ::
+  (ctx : _z3-context)
+  (fn  : _string)
+  (num-sorts : _uint = (length sorts))
+  (sort-names : (_list i _z3-symbol) = (map car sorts))
+  (sort-vals  : (_list i _z3-sort) = (map cdr sorts))
+  (num-decls  : _uint = (length decls))
+  (decl-names : (_list i _z3-symbol) = (map car decls))
+  (decl-vals  : (_list i _z3-func-decl) = (map cdr decls))
+  -> _void)
+(defz3 get-smtlib-num-formulas : _z3-context -> _uint)
+(defz3 get-smtlib-formula : _z3-context _uint -> _z3-ast)
+(defz3 get-smtlib-num-assumptions : _z3-context -> _uint)
+(defz3 get-smtlib-assumption : _z3-context _uint -> _z3-ast)
+(defz3 get-smtlib-num-decls : _z3-context -> _uint)
+(defz3 get-smtlib-decl : _z3-context _uint -> _z3-func-decl)
+(defz3 get-smtlib-num-sorts : _z3-context -> _uint)
+(defz3 get-smtlib-sort : _z3-context _uint -> _z3-sort)
+(defz3 get-smtlib-error : _z3-context -> _string)
 
 ;; error handling functions
 (defz3 get-error-code : _z3-context -> _z3-error-code)
@@ -386,18 +472,35 @@
 (defz3 model-eval : _z3-context _z3-model _z3-ast _bool (res : (_ptr o _z3-ast))
   -> (ok? : _bool)
   -> (and ok? res))
-(defz3 model-get-const-decl : _z3-context _z3-model _uint -> _z3-func-decl)
 (defz3 model-get-const-interp : _z3-context _z3-model _z3-func-decl -> _z3-ast)
-(defz3 model-get-func-decl : _z3-context _z3-model _uint -> _z3-func-decl)
-(defz3 model-get-func-interp : _z3-context _z3-model _z3-func-decl -> _z3-func-decl/null)
+(defz3 model-has-interp? : _z3-context _z3-model _z3-func-decl -> _bool)
+(defz3 model-get-func-interp : _z3-context _z3-model _z3-func-decl -> _z3-func-interp/null)
 (defz3 model-get-num-consts : _z3-context _z3-model -> _uint)
+(defz3 model-get-const-decl : _z3-context _z3-model _uint -> _z3-func-decl)
 (defz3 model-get-num-funcs : _z3-context _z3-model -> _uint)
+(defz3 model-get-func-decl : _z3-context _z3-model _uint -> _z3-func-decl)
 (defz3 model-get-num-sorts : _z3-context _z3-model -> _uint)
 (defz3 model-get-sort : _z3-context _z3-model _uint -> _z3-sort)
-;; TODO model-get-sort-universe
-(defz3 model-has-interp : _z3-context _z3-model _z3-func-decl -> _bool)
-;; TODO model-to-string
+(defz3 model-get-sort-universe : _z3-context _z3-model _z3-sort -> _z3-ast-vector)
+(defz3 is-as-array? : _z3-context _z3-ast -> _bool)
+(defz3 get-as-array-func-decl : _z3-context _z3-ast -> _z3-func-decl)
+(defz3 func-interp-inc-ref! : _z3-context _z3-func-interp -> _void)
+(defz3 func-interp-dec-ref! : _z3-context _z3-func-interp -> _void)
+(defz3 func-interp-get-num-entries : _z3-context _z3-func-interp -> _uint)
+(defz3 func-interp-get-entry : _z3-context _z3-func-interp _uint -> _z3-func-entry)
+(defz3 func-interp-get-else : _z3-context _z3-func-interp -> _z3-ast)
+(defz3 func-interp-get-arity : _z3-context _z3-func-interp -> _uint)
+(defz3 func-entry-inc-ref! : _z3-context _z3-func-entry -> _void)
+(defz3 func-entry-dec-ref! : _z3-context _z3-func-entry -> _void)
+(defz3 func-entry-get-value : _z3-context _z3-func-entry -> _z3-ast)
+(defz3 func-entry-get-num-args : _z3-context _z3-func-entry -> _uint)
+(defz3 func-entry-get-arg : _z3-context _z3-func-entry _uint -> _z3-ast)
 
+;; Interaction logging
+(defz3 open-log : _string -> _bool)
+(defz3 append-log! : _string -> _void)
+(defz3 close-log! : -> _bool)
+(defz3 toggle-warning-messages! : _bool -> _void)
 
 ;; Statistics
 (defz3 stats-to-string : _z3-context _z3-stats -> _string)
@@ -421,3 +524,16 @@
 (defz3 ast-vector-push! : _z3-context _z3-ast-vector _z3-ast -> _void)
 (defz3 ast-vector-translate : _z3-context _z3-ast-vector _z3-context -> _z3-ast-vector)
 (defz3 ast-vector-to-string : _z3-context _z3-ast-vector -> _string)
+
+;; Miscellaneous
+(defz3 get-version :
+  (major           : (_ptr o _uint))
+  (minor           : (_ptr o _uint))
+  (build-number    : (_ptr o _uint))
+  (revision-number : (_ptr o _uint))
+  -> _void
+  -> (values major minor build-number revision-number))
+(defz3 enable-trace! : _string -> _void)
+(defz3 disable-trace! : _string -> _void)
+(defz3 reset-memory! : -> _void)
+(defz3 finalize-memory! : -> _void)
