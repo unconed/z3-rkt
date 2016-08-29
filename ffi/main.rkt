@@ -164,6 +164,24 @@
   [mk-quantifier-const
    (Z3:Context Boolean Nonnegative-Fixnum (Listof Z3:App) (Listof Z3:Pattern) Z3:Ast → Z3:Ast)]
 
+  ;; Accessors
+  [get-symbol-string (Z3:Context Z3:Symbol → String)]
+  [get-decl-name (Z3:Context Z3:Func-Decl → Z3:Symbol)]
+  [get-domain-size (Z3:Context Z3:Func-Decl → Nonnegative-Fixnum)]
+  [get-arity (Z3:Context Z3:Func-Decl → Nonnegative-Fixnum)]
+  [get-domain (Z3:Context Z3:Func-Decl Nonnegative-Fixnum → Z3:Sort)]
+  [get-range (Z3:Context Z3:Func-Decl → Z3:Sort)]
+  [app-to-ast (Z3:Context Z3:App → Z3:Ast)]
+  [get-app-decl (Z3:Context Z3:App → Z3:Func-Decl)]
+  [get-app-num-args (Z3:Context Z3:App → Nonnegative-Fixnum)]
+  [get-app-arg (Z3:Context Z3:App Nonnegative-Fixnum → Z3:Ast)]
+  [get-sort (Z3:Context Z3:Ast → Z3:Sort)]
+  [get-bool-value (Z3:Context Z3:Ast → Z3:LBool)]
+  [get-ast-kind (Z3:Context Z3:Ast → Z3:Ast-Kind)]
+  [is-numeral-ast? (Z3:Context Z3:Ast → Boolean)]
+  [to-app (Z3:Context Z3:Ast → Z3:App)]
+  [get-numeral-string (Z3:Context Z3:Ast → String)]
+
   ;; String conversion
   [set-ast-print-mode! (Z3:Context Z3:Ast-Print-Mode → Void)]
   [ast-to-string (Z3:Context Z3:Ast → String)]
@@ -194,16 +212,6 @@
   ;; error handling functions
   [get-error-code (Z3:Context → Z3:Error-Code)]
   [get-error-msg (Z3:Error-Code → String)]
-
-  ;; FIXME tmp hacks
-  [z3-get-sort (Z3:Context Z3:Ast → Z3:Sort)]
-
-  [get-ast-kind (Z3:Context Z3:Ast → Z3:Ast-Kind)]
-  [get-numeral-string (Z3:Context Z3:Ast → String)]
-  [to-app (Z3:Context Z3:Ast → Z3:App)]
-  [get-app-num-args (Z3:Context Z3:App → Nonnegative-Fixnum)]
-  [app-to-ast (Z3:Context Z3:App → Z3:Ast)]
-  [get-app-decl (Z3:Context Z3:App → Z3:Func-Decl)]
 
   ;; Model
   [model-inc-ref! (Z3:Context Z3:Model → Void)]

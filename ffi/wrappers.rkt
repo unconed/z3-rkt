@@ -389,6 +389,34 @@
   -> _z3-ast)
 ; TODO mk-quantifier-const-ex
 
+;; Accessors
+; TODO many
+(defz3 get-symbol-string : _z3-context _z3-symbol -> _string)
+; TODO many
+(defz3 get-decl-name : _z3-context _z3-func-decl -> _z3-symbol)
+; TODO get-decl-kind
+(defz3 get-domain-size : _z3-context _z3-func-decl -> _uint)
+(define get-arity get-domain-size) (provide get-arity)
+(defz3 get-domain : _z3-context _z3-func-decl _uint -> _z3-sort)
+(defz3 get-range : _z3-context _z3-func-decl -> _z3-sort)
+; TODO many
+(defz3 app-to-ast : _z3-context _z3-app -> _z3-ast)
+(defz3 get-app-decl : _z3-context _z3-app -> _z3-func-decl)
+(defz3 get-app-num-args : _z3-context _z3-app -> _uint)
+(defz3 get-app-arg : _z3-context _z3-app _uint -> _z3-ast)
+; TODO many
+(defz3 get-sort : _z3-context _z3-ast -> _z3-sort)
+; TODO many
+(defz3 get-bool-value : _z3-context _z3-ast -> _z3-lbool)
+(defz3 get-ast-kind : _z3-context _z3-ast -> _z3-ast-kind)
+; TODO many
+(defz3 is-numeral-ast? : _z3-context _z3-ast -> _bool)
+; TODO many
+(defz3 to-app : _z3-context _z3-ast -> _z3-app)
+; TODO many
+(defz3 get-numeral-string : _z3-context _z3-ast -> _string)
+; TODO many
+
 ;; String conversion
 (defz3 set-ast-print-mode! : _z3-context _z3-ast-print-mode -> _void)
 (defz3 ast-to-string : _z3-context _z3-ast -> _string)
@@ -452,19 +480,6 @@
 ;; error handling functions
 (defz3 get-error-code : _z3-context -> _z3-error-code)
 (defz3 get-error-msg : _z3-error-code -> _string)
-
-;; TODO tmp hacks
-(begin
-  (define z3-get-sort
-    (get-ffi-obj "Z3_get_sort" libz3 (_fun _z3-context _z3-ast -> _z3-sort)))
-  (provide z3-get-sort))
-
-(defz3 get-ast-kind : _z3-context _z3-ast -> _z3-ast-kind)
-(defz3 get-numeral-string : _z3-context _z3-ast -> _string)
-(defz3 to-app : _z3-context _z3-ast -> _z3-app)
-(defz3 get-app-num-args : _z3-context _z3-app -> _uint)
-(defz3 app-to-ast : _z3-context _z3-app -> _z3-ast)
-(defz3 get-app-decl : _z3-context _z3-app -> _z3-func-decl)
 
 ;; Model
 (defz3 model-inc-ref! : _z3-context _z3-model -> _void)
