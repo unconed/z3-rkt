@@ -33,7 +33,7 @@
     (assert! (=/s (+/s (*/s 2 x) (*/s 2 y)) 21))
     (check-equal? (check-sat) 'unsat)
     (dynamic-declare-const 'p Bool/s))
-  (check-exn exn:fail? (λ () (assert! (get-val 'p)))))
+  (check-exn exn:fail? (λ () (assert! (val-of 'p)))))
 
 ;; TODO: parameterized sort
 #;(with-new-context ()
