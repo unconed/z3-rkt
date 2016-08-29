@@ -48,38 +48,35 @@
       e ...))
 
   ;; Initializing solver does not require resetting anything else
-  (define-syntax-rule (with-new-solver (option ...) e ...)
+  (define-syntax-rule (with-new-solver e ...)
     (let* ([ctx (get-context)]
            [solver (mk-solver ctx)])
       (solver-inc-ref! ctx solver)
-      (begin0 (with-solver solver
-                (set-options! option ...)
-                e ...)
+      (begin0 (with-solver solver e ...)
         (solver-dec-ref! ctx solver))))
 
   ;; Initializing a context requires resetting solver and environments
-  (define-syntax-rule (with-new-context (option ...) e ...)
+  (define-syntax-rule (with-new-context e ...)
     (let ()
       (define cfg (mk-config))
       (define ctx (mk-context cfg))
       ;(printf "~n")
       (begin0 (with-context ctx
-                (with-new-solver (option ...)
+                (with-new-solver
                   (with-new-environment
                     e ...)))
         ;(printf "~n")
         (del-context ctx)
         (del-config cfg))))
 
-  (define-syntax-rule (init-global-context! option ...)
+  (define-syntax-rule (init-global-context!)
     (let* ([ctx (mk-context (mk-config))]
            [slvr (mk-solver ctx)]
            [nv (init-env ctx)])
       (solver-inc-ref! ctx slvr)
       (context ctx)
       (solver slvr)
-      (env nv)
-      (set-options! option ...)))
+      (env nv)))
 
   (define-syntax-rule (destroy-global-context!)
     (let ([ctx (get-context)]) ; TODO: no del-config ...

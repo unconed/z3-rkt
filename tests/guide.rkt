@@ -12,7 +12,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (check-equal?
- (with-new-context ()
+ (with-new-context
    (declare-const a Int/s)
    (declare-fun f (Int/s Bool/s) Int/s)
    (assert! (>/s a 10))
@@ -20,7 +20,7 @@
    (check-sat))
  'sat)
 
-(with-new-context ()
+(with-new-context
   (declare-const x Int/s)
   (declare-const y Int/s)
   (declare-const z Int/s)
@@ -36,7 +36,7 @@
   (check-exn exn:fail? (λ () (assert! (val-of 'p)))))
 
 ;; TODO: parameterized sort
-#;(with-new-context ()
+#;(with-new-context
   (define-sort Set (T) (Array T Bool/s))
   (define-sort IList () (List Int/s))
   (define-sort List-Set (T) (Array (List T) Bool/s))
@@ -56,7 +56,7 @@
 ;;;;; Propositional Logic
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(with-new-context ()
+(with-new-context
   (declare-const p Bool/s)
   (declare-const q Bool/s)
   (declare-const r Bool/s)
@@ -66,7 +66,7 @@
   (assert! (not/s conjecture))
   (check-equal? (check-sat) 'unsat))
 
-(with-new-context ()
+(with-new-context
   (declare-const a Bool/s)
   (declare-const b Bool/s)
   (define-fun demorgan () Bool/s
@@ -79,7 +79,7 @@
 ;;;;; Uninterpreted functions and constants
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(with-new-context ()
+(with-new-context
   (declare-sort A)
   (declare-const x A)
   (declare-const y A)
@@ -95,7 +95,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (check-equal?
- (with-new-context ()
+ (with-new-context
    (declare-const a Int/s)
    (declare-const b Int/s)
    (declare-const c Int/s)
@@ -109,7 +109,7 @@
  'sat)
 
 (check-equal?
- (with-new-context ()
+ (with-new-context
    (declare-const a Int/s)
    (declare-const b Int/s)
    (declare-const c Int/s)
@@ -122,14 +122,14 @@
  'sat)
 
 (check-equal?
- (with-new-context ()
+ (with-new-context
    (declare-const a Int/s)
    (assert! (>/s (*/s a a) 3))
    (check-sat))
  'sat)
 
 (check-equal?
- (with-new-context ()
+ (with-new-context
    (declare-const b Real/s)
    (declare-const c Real/s)
    (assert! (=/s (+/s (*/s b b b) (*/s b c)) 3.0))
@@ -137,7 +137,7 @@
  'sat)
 
 (check-equal?
- (with-new-context ()
+ (with-new-context
    (declare-const x Real/s)
    (declare-const y Real/s)
    (declare-const z Real/s)
@@ -148,7 +148,7 @@
  'unsat)
 
 (check-equal?
- (with-new-context ()
+ (with-new-context
    (declare-const b Real/s)
    (declare-const c Real/s)
    (assert! (=/s (+/s (*/s b b b) (*/s b c)) 3.0))
@@ -156,7 +156,7 @@
  'sat)
 
 (check-equal?
- (with-new-context ()
+ (with-new-context
    (declare-const a Int/s)
    (declare-const r1 Int/s)
    (declare-const r2 Int/s)
@@ -179,7 +179,7 @@
  'sat)
 
 (check-equal?
- (with-new-context ()
+ (with-new-context
    (define-fun mydiv ((x Real/s) (y Real/s)) Real/s
      (ite/s (not/s (=/s y 0.0))
             (//s x y)
@@ -202,7 +202,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (check-equal?
- (with-new-context ()
+ (with-new-context
    (declare-const x Int/s)
    (declare-const y Int/s)
    (declare-const z Int/s)
@@ -215,7 +215,7 @@
  'sat)
 
 (check-equal?
- (with-new-context ()
+ (with-new-context
    (declare-const x Int/s)
    (declare-const y Int/s)
    (declare-const z Int/s)
@@ -238,7 +238,7 @@
 
 ;; TODO records (parameterized)
 
-(with-new-context ()
+(with-new-context
   (declare-datatypes () ((S A B C)))
   (declare-const x S)
   (declare-const y S)
@@ -259,7 +259,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (check-equal?
- (with-new-context ()
+ (with-new-context
    (declare-sort Type)
    (declare-fun subtype (Type Type) Bool/s)
    (declare-fun array-of (Type) Type)
@@ -282,7 +282,10 @@
  'sat)
 
 (check-equal?
- (with-new-context (#:timeout 2000)
+ (with-new-context
+   (set-options! #:auto-config? #f
+                 #:mbqi? #f
+                 #:timeout 2000)
    (declare-fun f (Int/s) Int/s)
    (declare-fun g (Int/s) Int/s)
    (declare-const a Int/s)
@@ -295,10 +298,10 @@
    (assert! (=/s (g b) c))
    (assert! (not/s (=/s a b)))
    (check-sat))
- 'unsat)
+ 'unknown)
 
 (check-equal?
- (with-new-context ()
+ (with-new-context
    (declare-sort A)
    (declare-sort B)
    (declare-fun f (A) B)
