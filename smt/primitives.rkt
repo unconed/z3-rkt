@@ -65,8 +65,8 @@
                 (define (f/s [x : Expr] ...)
                   #;(printf "Applying ~a to ~a~n"
                           'f/s
-                          (list `(,(ast-to-string (get-context) (expr->_z3-ast x)) :
-                                  ,(sort-to-string (get-context) (z3-get-sort (get-context) (expr->_z3-ast x)))) ...))
+                          (list `(,(ast->string (get-context) (expr->_z3-ast x)) :
+                                  ,(sort->string (get-context) (z3-sort-of (get-context) (expr->_z3-ast x)))) ...))
                   (v (get-context) (expr->_z3-ast x) ...))
                 (provide f/s)))]
          [(~literal *)
@@ -76,7 +76,7 @@
                 #;(printf "Applying ~a to ~a~n"
                           'f/s
                           (for/list : (Listof String) ([arg args])
-                            (ast-to-string (get-context) arg)))
+                            (ast->string (get-context) arg)))
                 (apply v (get-context) (map expr->_z3-ast xs)))
               (provide f/s))]
          [(~literal lassoc)
@@ -170,8 +170,8 @@
   #;(printf "@/s ~a ~a~n"
           f
           (for/list : (Listof Any) ([x xs])
-            (ast-to-string (get-context) (expr->_z3-ast x))))
-  (apply (get-fun f) xs))
+            (ast->string (get-context) (expr->_z3-ast x))))
+  (apply (fun-of f) xs))
 (provide @/s)
 
 (define-syntax hash-set*
@@ -190,7 +190,7 @@
            (define new-vals
              (for/hasheq : (HashTable Symbol Z3:Ast) ([xᵢ (in-list '(x ...))]
                                                       [cᵢ (in-list (list x ...))])
-               (values xᵢ (app-to-ast ctx cᵢ))))
+               (values xᵢ (app->ast ctx cᵢ))))
            (define-values (body patterns)
              (with-extended-vals new-vals
                (values (expr->_z3-ast e) pats)))
@@ -213,7 +213,7 @@
          (mk-const ctx (make-symbol x) (assert (sort-expr->_z3-sort t) z3-sort?))))
      (define new-vals
        (for/hasheq : (HashTable Symbol Z3:Ast) ([x xs] [c bounds])
-         (values x (app-to-ast ctx c))))
+         (values x (app->ast ctx c))))
      (define-values (body patterns)
        (with-extended-vals new-vals
          (values (expr->_z3-ast e) pats)))

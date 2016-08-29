@@ -5,9 +5,9 @@
  init-global-context!
  destroy-global-context!
  with-local-stack
- get-val
- get-fun
- get-sort
+ val-of
+ fun-of
+ sort-of
  
  declare-datatypes
  declare-datatype
@@ -67,7 +67,7 @@
   (define rng-sort (assert (sort-expr->_z3-sort rng) z3-sort?))
   (cond
     [(null? dom)
-     (define v (app-to-ast ctx (mk-const ctx name rng-sort)))
+     (define v (app->ast ctx (mk-const ctx name rng-sort)))
      (set-val! f-id v)
      v]
     [else
@@ -295,7 +295,7 @@
   (define ctx (get-context))
   (define assertions (solver-get-assertions ctx (get-solver)))
   (for ([i (ast-vector-size ctx assertions)])
-    (printf "~a~n" (ast-to-string ctx (ast-vector-get ctx assertions i)))))
+    (printf "~a~n" (ast->string ctx (ast-vector-get ctx assertions i)))))
 
 
 ;; Functions that are written in terms of the base functions in main.rkt and

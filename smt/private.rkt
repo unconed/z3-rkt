@@ -96,12 +96,12 @@
         e ...))))
 
 ;; A symbol table for sorts
-(: get-sort : Symbol → Z3:Sort)
-(define (get-sort id)
+(: sort-of : Symbol → Z3:Sort)
+(define (sort-of id)
   (define sorts (Env-sorts (get-env)))
   (hash-ref sorts id
             (λ ()
-              (error 'get-sort "cannot find `~a` among ~a" id (hash-keys sorts)))))
+              (error 'sort-of "cannot find `~a` among ~a" id (hash-keys sorts)))))
 
 (: new-sort! : Symbol Z3:Sort → Void)
 (define (new-sort! id v)
@@ -118,11 +118,11 @@
   (define vals (Env-vals env))
   (set-Env-vals! env (hash-set vals id v)))
 
-(: get-val : Symbol → Z3:Ast)
-(define (get-val id)
+(: val-of : Symbol → Z3:Ast)
+(define (val-of id)
   (define vals (Env-vals (get-env)))
   (hash-ref vals id (λ ()
-                      (error 'get-val "cannot find `~a` among ~a" id (hash-keys vals)))))
+                      (error 'val-of "cannot find `~a` among ~a" id (hash-keys vals)))))
 
 (: set-fun! : Symbol Z3:Func → Void)
 (define (set-fun! id v)
@@ -130,17 +130,17 @@
   (define funs (Env-funs env))
   (set-Env-funs! env (hash-set funs id v)))
 
-(: get-fun : Symbol → Z3:Func)
-(define (get-fun id)
+(: fun-of : Symbol → Z3:Func)
+(define (fun-of id)
   (define funs (Env-funs (get-env)))
   (hash-ref funs id (λ ()
-                      (error 'get-fun "cannot find `~a` among ~a" id (hash-keys funs)))))
+                      (error 'fun-of "cannot find `~a` among ~a" id (hash-keys funs)))))
 
-(: get-sort-fun : Symbol → Z3:Sort-Func)
-(define (get-sort-fun id)
+(: sort-of-fun : Symbol → Z3:Sort-Func)
+(define (sort-of-fun id)
   (define sort-funs (Env-sort-funs (get-env)))
   (hash-ref sort-funs id (λ ()
-                           (error 'get-sort-fun "cannot find `~a` among ~a" id (hash-keys sort-funs)))))
+                           (error 'sort-of-fun "cannot find `~a` among ~a" id (hash-keys sort-funs)))))
 
 (: set-sort-fun! : Symbol Z3:Sort-Func → Void)
 (define (set-sort-fun! id v)
@@ -188,12 +188,12 @@
         [(?  inexact-real? r)
          (mk-numeral cur-ctx (number->string r) (mk-real-sort cur-ctx))]
         ;; Delayed constant
-        [(? symbol? x) (get-val x)]
+        [(? symbol? x) (val-of x)]
         ; Anything else
-        [(? z3-app? e) (app-to-ast cur-ctx e)]
+        [(? z3-app? e) (app->ast cur-ctx e)]
         [(? z3-ast? e) e]
         [_ (error 'expr->_z3-ast "unexpected: ~a" e)])))
-  ;(displayln (format "Output: ~a ~a ~a" expr ast (z3:ast-to-string cur-ctx ast)))
+  ;(displayln (format "Output: ~a ~a ~a" expr ast (z3:ast->string cur-ctx ast)))
   ast)
 
 (: sort-expr->_z3-sort : Sort-Expr → Z3:Sort)
@@ -201,7 +201,7 @@
 ;; PN: Only have simple sorts for now, which makes it just simple lookup
 (define (sort-expr->_z3-sort expr)
   (match expr
-    [(? symbol? id) (get-sort id)]
+    [(? symbol? id) (sort-of id)]
     [(? z3-sort? expr) expr]
     [_ (error 'sort-expr->_z3-sort "unexpected: ~a" expr)]))
 
@@ -214,10 +214,10 @@
            (define ctx (get-context))
            (define args (map expr->_z3-ast xs))
            #;(printf "applying ~a to ~a~n"
-                     (func-decl-to-string ctx f-decl)
+                     (func-decl->string ctx f-decl)
                      (for/list : (Listof Sexp) ([arg args])
-                       (define arg-str (ast-to-string ctx arg))
-                       (define sort (sort-to-string ctx (z3-get-sort ctx arg)))
+                       (define arg-str (ast->string ctx arg))
+                       (define sort (sort->string ctx (z3-sort-of ctx arg)))
                        `(,arg-str : ,sort)))
            (apply mk-app ctx f-decl args)]
           [else
