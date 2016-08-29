@@ -45,7 +45,7 @@
   [solver-get-unsat-core (Z3:Context Z3:Solver → Z3:Ast-Vector)]
   [solver-get-reason-unknown (Z3:Context Z3:Solver → String)]
   [solver-get-statistics (Z3:Context Z3:Solver → Z3:Stats)]
-  [solver-to-string (Z3:Context Z3:Solver → String)]
+  [solver->string (Z3:Context Z3:Solver → String)]
   
   [mk-string-symbol (Z3:Context String → Z3:Symbol)]
 
@@ -57,7 +57,7 @@
   [params-set-uint! (Z3:Context Z3:Params Z3:Symbol Nonnegative-Fixnum → Void)]
   [params-set-double! (Z3:Context Z3:Params Z3:Symbol Inexact-Real → Void)]
   [params-set-symbol! (Z3:Context Z3:Params Z3:Symbol Z3:Symbol → Void)]
-  [params-to-string (Z3:Context Z3:Params → String)]
+  [params->string (Z3:Context Z3:Params → String)]
   [params-validate! (Z3:Context Z3:Params Z3:Param-Descrs → Void)]
 
   ;; Parameter Descriptions
@@ -66,7 +66,7 @@
   [param-descrs-get-kind (Z3:Context Z3:Param-Descrs Z3:Symbol → Z3:Param-Kind)]
   [param-descrs-size (Z3:Context Z3:Param-Descrs → Nonnegative-Fixnum)]
   [param-descrs-get-name (Z3:Context Z3:Param-Descrs Nonnegative-Fixnum → Z3:Symbol)]
-  [param-descrs-to-string (Z3:Context Z3:Param-Descrs → String)]
+  [param-descrs->string (Z3:Context Z3:Param-Descrs → String)]
 
   ;; Sorts
   [mk-uninterpreted-sort (Z3:Context Z3:Symbol → Z3:Sort)]
@@ -171,7 +171,7 @@
   [get-arity (Z3:Context Z3:Func-Decl → Nonnegative-Fixnum)]
   [get-domain (Z3:Context Z3:Func-Decl Nonnegative-Fixnum → Z3:Sort)]
   [get-range (Z3:Context Z3:Func-Decl → Z3:Sort)]
-  [app-to-ast (Z3:Context Z3:App → Z3:Ast)]
+  [app->ast (Z3:Context Z3:App → Z3:Ast)]
   [get-app-decl (Z3:Context Z3:App → Z3:Func-Decl)]
   [get-app-num-args (Z3:Context Z3:App → Nonnegative-Fixnum)]
   [get-app-arg (Z3:Context Z3:App Nonnegative-Fixnum → Z3:Ast)]
@@ -184,11 +184,11 @@
 
   ;; String conversion
   [set-ast-print-mode! (Z3:Context Z3:Ast-Print-Mode → Void)]
-  [ast-to-string (Z3:Context Z3:Ast → String)]
-  [pattern-to-string (Z3:Context Z3:Pattern → String)]
-  [sort-to-string (Z3:Context Z3:Sort → String)]
-  [func-decl-to-string (Z3:Context Z3:Func-Decl → String)]
-  [model-to-string (Z3:Context Z3:Model → String)]
+  [ast->string (Z3:Context Z3:Ast → String)]
+  [pattern->string (Z3:Context Z3:Pattern → String)]
+  [sort->string (Z3:Context Z3:Sort → String)]
+  [func-decl->string (Z3:Context Z3:Func-Decl → String)]
+  [model->string (Z3:Context Z3:Model → String)]
 
   ;; Parser interface
   [parse-smtlib2-string
@@ -248,7 +248,7 @@
   [toggle-warning-messages! (Boolean → Void)]
 
   ;; Statistics
-  [stats-to-string (Z3:Context Z3:Stats → String)]
+  [stats->string (Z3:Context Z3:Stats → String)]
   [stats-inc-ref! (Z3:Context Z3:Stats → Void)]
   [stats-dec-ref! (Z3:Context Z3:Stats → Void)]
   [stats-size (Z3:Context Z3:Stats → Nonnegative-Fixnum)]
@@ -268,7 +268,7 @@
   [ast-vector-resize! (Z3:Context Z3:Ast-Vector Nonnegative-Fixnum → Void)]
   [ast-vector-push! (Z3:Context Z3:Ast-Vector Z3:Ast → Void)]
   [ast-vector-translate (Z3:Context Z3:Ast-Vector Z3:Context → Z3:Ast-Vector)]
-  [ast-vector-to-string (Z3:Context Z3:Ast-Vector → String)]
+  [ast-vector->string (Z3:Context Z3:Ast-Vector → String)]
 
   ;; Miscellaneous
   [get-version

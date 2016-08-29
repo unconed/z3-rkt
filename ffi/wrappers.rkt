@@ -39,7 +39,8 @@
     [(_ x #:wrapper w : t ...)
      (begin
        (define x
-         (let* ([c-name (regexp-replaces (format "Z3_~a" 'x) '((#rx"-" "_")
+         (let* ([c-name (regexp-replaces (format "Z3_~a" 'x) '((#rx"->" "_to_")
+                                                               (#rx"-" "_")
                                                                (#rx"!$" "")
                                                                (#rx"\\?$" "")))]
                 [func (get-ffi-obj c-name libz3 (_fun t ...))])
@@ -142,7 +143,7 @@
 (defz3 solver-get-unsat-core : _z3-context _z3-solver -> _z3-ast-vector)
 (defz3 solver-get-reason-unknown : _z3-context _z3-solver -> _string)
 (defz3 solver-get-statistics : _z3-context _z3-solver -> _z3-stats)
-(defz3 solver-to-string : _z3-context _z3-solver -> _string)
+(defz3 solver->string : _z3-context _z3-solver -> _string)
 
 (defz3 mk-string-symbol : _z3-context _string -> _z3-symbol)
 
@@ -154,7 +155,7 @@
 (defz3 params-set-uint! : _z3-context _z3-params _z3-symbol _uint -> _void)
 (defz3 params-set-double! : _z3-context _z3-params _z3-symbol _double -> _void)
 (defz3 params-set-symbol! : _z3-context _z3-params _z3-symbol _z3-symbol -> _void)
-(defz3 params-to-string : _z3-context _z3-params -> _string)
+(defz3 params->string : _z3-context _z3-params -> _string)
 (defz3 params-validate! : _z3-context _z3-params _z3-param-descrs -> _void)
 
 ;; Parameter Descriptions
@@ -163,7 +164,7 @@
 (defz3 param-descrs-get-kind : _z3-context _z3-param-descrs _z3-symbol -> _z3-param-kind)
 (defz3 param-descrs-size : _z3-context _z3-param-descrs -> _uint)
 (defz3 param-descrs-get-name : _z3-context _z3-param-descrs _uint -> _z3-symbol)
-(defz3 param-descrs-to-string : _z3-context _z3-param-descrs -> _string)
+(defz3 param-descrs->string : _z3-context _z3-param-descrs -> _string)
 
 
 ;; Sorts
@@ -400,7 +401,7 @@
 (defz3 get-domain : _z3-context _z3-func-decl _uint -> _z3-sort)
 (defz3 get-range : _z3-context _z3-func-decl -> _z3-sort)
 ; TODO many
-(defz3 app-to-ast : _z3-context _z3-app -> _z3-ast)
+(defz3 app->ast : _z3-context _z3-app -> _z3-ast)
 (defz3 get-app-decl : _z3-context _z3-app -> _z3-func-decl)
 (defz3 get-app-num-args : _z3-context _z3-app -> _uint)
 (defz3 get-app-arg : _z3-context _z3-app _uint -> _z3-ast)
@@ -419,12 +420,12 @@
 
 ;; String conversion
 (defz3 set-ast-print-mode! : _z3-context _z3-ast-print-mode -> _void)
-(defz3 ast-to-string : _z3-context _z3-ast -> _string)
-(defz3 pattern-to-string : _z3-context _z3-pattern -> _string)
-(defz3 sort-to-string : _z3-context _z3-sort -> _string)
-(defz3 func-decl-to-string : _z3-context _z3-func-decl -> _string)
-(defz3 model-to-string : _z3-context _z3-model -> _string)
-; TODO benchmark-to-smtlib-string
+(defz3 ast->string : _z3-context _z3-ast -> _string)
+(defz3 pattern->string : _z3-context _z3-pattern -> _string)
+(defz3 sort->string : _z3-context _z3-sort -> _string)
+(defz3 func-decl->string : _z3-context _z3-func-decl -> _string)
+(defz3 model->string : _z3-context _z3-model -> _string)
+; TODO benchmark->smtlib-string
 
 ;; Parser interface
 (defz3 parse-smtlib2-string : (ctx str sorts decls) ::
@@ -518,7 +519,7 @@
 (defz3 toggle-warning-messages! : _bool -> _void)
 
 ;; Statistics
-(defz3 stats-to-string : _z3-context _z3-stats -> _string)
+(defz3 stats->string : _z3-context _z3-stats -> _string)
 (defz3 stats-inc-ref! : _z3-context _z3-stats -> _void)
 (defz3 stats-dec-ref! : _z3-context _z3-stats -> _void)
 (defz3 stats-size : _z3-context _z3-stats -> _uint)
@@ -538,7 +539,7 @@
 (defz3 ast-vector-resize! : _z3-context _z3-ast-vector _uint -> _void)
 (defz3 ast-vector-push! : _z3-context _z3-ast-vector _z3-ast -> _void)
 (defz3 ast-vector-translate : _z3-context _z3-ast-vector _z3-context -> _z3-ast-vector)
-(defz3 ast-vector-to-string : _z3-context _z3-ast-vector -> _string)
+(defz3 ast-vector->string : _z3-context _z3-ast-vector -> _string)
 
 ;; Miscellaneous
 (defz3 get-version :
