@@ -158,8 +158,8 @@
 (defz3 params-validate! : _z3-context _z3-params _z3-param-descrs -> _void)
 
 ;; Parameter Descriptions
-(defz3 param_descrs-inc-ref! : _z3-context _z3-param-descrs -> _void)
-(defz3 param_descrs-dec-ref! : _z3-context _z3-param-descrs -> _void)
+(defz3 param-descrs-inc-ref! : _z3-context _z3-param-descrs -> _void)
+(defz3 param-descrs-dec-ref! : _z3-context _z3-param-descrs -> _void)
 (defz3 param-descrs-get-kind : _z3-context _z3-param-descrs _z3-symbol -> _z3-param-kind)
 (defz3 param-descrs-size : _z3-context _z3-param-descrs -> _uint)
 (defz3 param-descrs-get-name : _z3-context _z3-param-descrs _uint -> _z3-symbol)

@@ -272,7 +272,7 @@
 (define (pattern-of ast . asts)
   (apply mk-pattern (get-context) ast asts))
 
-(: get-stats : → (HashTable Symbol Real))
+(: get-stats : → (HashTable Symbol (U Inexact-Real Nonnegative-Fixnum)))
 (define (get-stats)
   (define ctx (get-context))
   (define solver (get-solver))
@@ -280,7 +280,7 @@
   (begin0
       (begin
         (stats-inc-ref! ctx stats)
-        (for/hasheq : (HashTable Symbol Real) ([i (stats-size ctx stats)])
+        (for/hasheq : (HashTable Symbol (U Inexact-Real Nonnegative-Fixnum)) ([i (stats-size ctx stats)])
           (define k (string->symbol (string-replace (stats-get-key ctx stats i) " " "-")))
           (define v
             (cond [(stats-is-uint? ctx stats i)

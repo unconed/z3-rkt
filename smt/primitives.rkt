@@ -182,7 +182,7 @@
 (define-syntax (quant/s stx)
   (syntax-parse stx
     [(_ _ () e) #'e]
-    [(_ mk-quant:id ([x:id t] ...) e #:patterns pats)
+    [(_ mk-quant:id ([x:id t] ...) e #:pattern pats)
      #'(let ([ctx (get-context)])
          (let ([x (mk-const ctx
                             (make-symbol 'x)
@@ -197,13 +197,13 @@
            (mk-quant ctx 0 (list x ...) patterns body)))]))
 
 (define-simple-macro
-  (forall/s ([x:id t] ...) e (~optional (~seq #:patterns pats) #:defaults ([pats #'null])))
-  (quant/s mk-forall-const ([x t] ...) e #:patterns pats))
+  (forall/s ([x:id t] ...) e (~optional (~seq #:pattern pats) #:defaults ([pats #'null])))
+  (quant/s mk-forall-const ([x t] ...) e #:pattern pats))
 (define-simple-macro
-  (exists/s ([x:id t] ...) e (~optional (~seq #:patterns pats) #:defaults ([pats #'null])))
-  (quant/s mk-exists-const ([x t] ...) e #:patterns pats))
+  (exists/s ([x:id t] ...) e (~optional (~seq #:pattern pats) #:defaults ([pats #'null])))
+  (quant/s mk-exists-const ([x t] ...) e #:pattern pats))
 
-(define-simple-macro (dynamic-quant/s mk-quant-const xs* ts e #:patterns pats)
+(define-simple-macro (dynamic-quant/s mk-quant-const xs* ts e #:pattern pats)
   (match xs*
     ['() e]
     [xs
@@ -220,11 +220,11 @@
      (mk-quant-const ctx 0 bounds patterns body)]))
 
 (define-simple-macro
-  (dynamic-forall/s xs ts e (~optional (~seq #:patterns pats) #:defaults ([pats #'null])))
-  (dynamic-quant/s mk-forall-const xs ts e #:patterns pats))
+  (dynamic-forall/s xs ts e (~optional (~seq #:pattern pats) #:defaults ([pats #'null])))
+  (dynamic-quant/s mk-forall-const xs ts e #:pattern pats))
 (define-simple-macro
-  (dynamic-exists/s xs ts e (~optional (~seq #:patterns pats) #:defaults ([pats #'null])))
-  (dynamic-quant/s mk-exists-const xs ts e #:patterns pats))
+  (dynamic-exists/s xs ts e (~optional (~seq #:pattern pats) #:defaults ([pats #'null])))
+  (dynamic-quant/s mk-exists-const xs ts e #:pattern pats))
 
 (provide forall/s (rename-out [forall/s ∀/s])
          exists/s (rename-out [exists/s ∃/s])

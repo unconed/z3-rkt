@@ -61,8 +61,8 @@
   [params-validate! (Z3:Context Z3:Params Z3:Param-Descrs → Void)]
 
   ;; Parameter Descriptions
-  [param_descrs-inc-ref! (Z3:Context Z3:Param-Descrs → Void)]
-  [param_descrs-dec-ref! (Z3:Context Z3:Param-Descrs → Void)]
+  [param-descrs-inc-ref! (Z3:Context Z3:Param-Descrs → Void)]
+  [param-descrs-dec-ref! (Z3:Context Z3:Param-Descrs → Void)]
   [param-descrs-get-kind (Z3:Context Z3:Param-Descrs Z3:Symbol → Z3:Param-Kind)]
   [param-descrs-size (Z3:Context Z3:Param-Descrs → Nonnegative-Fixnum)]
   [param-descrs-get-name (Z3:Context Z3:Param-Descrs Nonnegative-Fixnum → Z3:Symbol)]
