@@ -302,6 +302,9 @@
 
 (check-equal?
  (with-new-context
+   (set-options! #:auto-config? #f
+                 #:mbqi? #f
+                 #:timeout 2000)
    (declare-sort A)
    (declare-sort B)
    (declare-fun f (A) B)
@@ -316,3 +319,65 @@
    (assert! (=/s (f a2) b))
    (check-sat))
  'unsat)
+
+(check-equal?
+ (with-new-context
+   (set-options! #:auto-config? #f
+                 #:mbqi? #f
+                 #:timeout 2000)
+   (declare-fun f (Int/s) Int/s)
+   (declare-fun g (Int/s) Int/s)
+   (declare-const a Int/s)
+   (declare-const b Int/s)
+   (declare-const c Int/s)
+   (assert! (∀/s ((x Int/s))
+                 (=/s (f (g x)) x)
+                 #:pattern (list (pattern-of (f (g x))))))
+   (assert! (=/s a (g b)))
+   (assert! (=/s b c))
+   (assert! (not/s (=/s (f a) c)))
+   (check-sat))
+ 'unsat)
+
+(check-equal?
+ (with-new-context
+   (set-options! #:auto-config? #f
+                 #:mbqi? #f
+                 #:timeout 2000)
+   (declare-sort A)
+   (declare-sort B)
+   (declare-fun f (A) B)
+   (assert! (∀/s ((x A) (y A))
+                 (=>/s (=/s (f x) (f y)) (=/s x y))
+                 #:pattern (list (pattern-of (f x) (f y)))))
+   (declare-const a1 A)
+   (declare-const a2 A)
+   (declare-const b B)
+   (assert! (not/s (=/s a1 a2)))
+   (assert! (=/s (f a1) b))
+   (assert! (=/s (f a2) b))
+   (check-sat))
+ 'unsat)
+
+(check-equal?
+ (with-new-context
+   (set-options! #:auto-config? #f
+                 #:mbqi? #f
+                 #:timeout 2000)
+   (declare-sort A)
+   (declare-sort B)
+   (declare-fun f (A) B)
+   (declare-fun f-inv (B) A)
+   (assert! (∀/s ((x A))
+                 (=/s (f-inv (f x)) x)
+                 #:pattern (list (pattern-of (f x)))))
+   (declare-const a1 A)
+   (declare-const a2 A)
+   (declare-const b B)
+   (assert! (not/s (=/s a1 a2)))
+   (assert! (=/s (f a1) b))
+   (assert! (=/s (f a2) b))
+   (check-sat))
+ 'unsat)
+
+; TODO mbqi
