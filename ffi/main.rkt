@@ -286,7 +286,7 @@
 (require/typed racket/base
   [(make-keyword-procedure
     make-config-keyword-procedure)
-   (((Listof Keyword) (Listof (U Boolean Integer String)) → Z3:Config) →
+   (((Listof Keyword) (Listof (U Boolean Nonnegative-Fixnum String)) → Z3:Config) →
     ([]
      [#:proof? Boolean
       #:debug-ref-count? Boolean
@@ -308,7 +308,8 @@
 (define mk-config
   (let ()
 
-    (: keyword-arg->_z3-param : Keyword (U Boolean Integer String) → (Values String String))
+    (: keyword-arg->_z3-param :
+       Keyword (U Boolean Nonnegative-Fixnum String) → (Values String String))
     (define (keyword-arg->_z3-param kw kw-arg)
       (define kw-str (assert (regexp-replaces (keyword->string kw)
                                               '((#rx"-" "_") (#rx"\\?$" "")))
