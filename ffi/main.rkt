@@ -209,8 +209,9 @@
   [get-smtlib-sort (Z3:Context Nonnegative-Fixnum → Z3:Sort)]
   [get-smtlib-error (Z3:Context → String)]
 
-  ;; error handling functions
+  ;; Error Handling
   [get-error-code (Z3:Context → Z3:Error-Code)]
+  ;[set-error-handler! (Z3:Context (Z3:Context Z3:Error-Code → Void) → Void)] ; FIXME
   [get-error-msg (Z3:Error-Code → String)]
 
   ;; Model

@@ -5,10 +5,19 @@
 (define-type Z3:LBool (U 'false 'undef 'true))
 (define-type Z3:Sat-LBool (U 'unsat 'unknown 'sat))
 (define-type Z3:Ast-Kind (U 'numeral 'app 'var 'quantifier 'unknown))
-(define-type Z3:Error-Code (U 'ok 'sort-error 'iob 'invalid-arg 'parser-error
-                              'no-parser 'invalid-pattern 'memout-fail
-                              'file-access-error 'invalid-usage
-                              'internal-fatal 'dec-ref-error))
+(define-type Z3:Error-Code (U 'ok
+                              'sort-error
+                              'iob
+                              'invalid-arg
+                              'parser-error
+                              'no-parser
+                              'invalid-pattern
+                              'memout-fail
+                              'file-access-error
+                              'invalid-usage
+                              'internal-fatal
+                              'dec-ref-error
+                              'z3-exception))
 (define-type Z3:Ast-Print-Mode (U 'print-smtlib-full
                                   'print-low-level
                                   'print-smtlib-compliant
