@@ -1,5 +1,7 @@
 #lang typed/racket/base
 
+(provide (all-defined-out))
+
 (require racket/match
          racket/set
          racket/string
@@ -111,18 +113,4 @@
 
   (loop! (read-doc in))
 
-  (values def-api-ret
-          def-api-arg
-          sig-ret
-          sig-arg
-          opaques
-          enums))
-
-#;(begin
-  ;; Debug
-  (define-values (def-api-ret def-api-arg sig-ret sig-arg opaques enums)
-    (scrape (open-input-file "/tmp/Z3-api/Z3_ C API.html")))
-  (define api-ids (list->set (hash-keys def-api-ret)))
-  (define sig-ids (list->set (hash-keys sig-ret)))
-  (define api-not-sig (set-subtract api-ids sig-ids))
-  (define sig-not-api (set-subtract sig-ids api-ids)))
+  (values def-api-ret def-api-arg sig-ret sig-arg opaques enums))

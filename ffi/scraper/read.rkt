@@ -35,8 +35,3 @@
 
 (define (read-doc in)
   (clean-up (retain-text (read-html in))))
-
-(module+ main
-  (require racket/pretty)
-  (parameterize ([pretty-print-columns 100])
-    (for-each pretty-write (read-doc (open-input-file "/tmp/Z3-api/Z3_ C API.html")))))
