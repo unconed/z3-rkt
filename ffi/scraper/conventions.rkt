@@ -49,8 +49,7 @@
 (define c-fun->rkt
   (match-lambda
     [(regexp #rx"^Z3_(.+)$" (list _ (? string? s)))
-     (assert (regexp-replaces s '([#rx"^is_(.+)$" "\\1?"]
-                                  [#rx"_to_" "->"]
+     (assert (regexp-replaces s '([#rx"_to_" "->"]
                                   [#rx"_" "-"]))
              string?)]))
 
