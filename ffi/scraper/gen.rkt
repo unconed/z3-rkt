@@ -11,34 +11,37 @@
                      racket/pretty
                      "scrape.rkt"
                      "conventions.rkt")
+         racket/splicing
          ffi/unsafe
          racket/string
          racket/match)
 
 #|
 * Untyped FFI:
-  - convert type name -> ffi-name
-  - convert def-api value name -> ffi-name
-  - declare tagged cpointers for opaque types
-  - define enums for enums
+  - [x] convert type name -> ffi-name
+  - [ ] convert def-api value name -> ffi-name
+  - [x] declare tagged cpointers for opaque types
+  - [x] define enums for enums
   - for each entry in def-api:
-    + multiple out params -> racket multiple returns
-    + arrays with length -> racket tuple
+    + [ ] multiple out params -> racket multiple returns
+    + [ ] arrays with length -> racket tuple
       * 1  -> values
       * 2  -> cons
       * 3+ -> list
-    + 1 out-param with success flag -> optional (assume no overlap with boolean)
-    + 1 length and 1 array -> varargs
-    + void with no out -> suffix `!`
-    + boolean with no out -> suffix `?`
-    + standard renamings: "_" -> "-", "_to_" -> "->", no "Z3_" prefix
+    + [ ] 1 out-param with success flag -> optional (assume no overlap with boolean)
+    + [ ] 1 length and 1 array -> varargs
+    + [ ] void with no out -> suffix `!`
+    + [ ] boolean with no out -> suffix `?`
 |#
 
 (begin-for-syntax
 
   (define (gen src)
+    
+    (define (->id x) (format-id src "~a" x))
+    (define (->stx x) (syntax->datum src x))
 
-    (define-values (def-api-ret def-api-arg sig-ret sig-arg opaques enums)
+    (define-values (api-ret api-arg sig-ret sig-arg opaques enums)
       (scrape (open-input-file "Z3-api/Z3_ C API.html")))
 
     (define-values (provides-add! provides)
@@ -56,9 +59,9 @@
     (define/contract define-opaque-cpointers (listof syntax?)
       (let ()
         (for ([t? (in-list t?s)])
-          (provides-add! (format-id src "~a" t?)))
+          (provides-add! (->id t?)))
         (for/list ([_t (in-list _ts)])
-          (with-syntax ([_t (format-id src "~a" _t)])
+          (with-syntax ([_t (->id _t)])
             #'(define-cpointer-type _t)))))
 
     (define/contract define-enums (listof syntax?)
@@ -79,18 +82,59 @@
                           [x (list x)])
                         vars))
           ;(provides-add! (format-id src "~a" t?))
-          (with-syntax ([_t (format-id src "~a" _t)])
+          (with-syntax ([_t (->id _t)])
             #`(define _t (_enum '#,vars-adjusted _int32))))))
+
+    (define/contract define-bindings (listof syntax?)
+      (let ()
+        (for/list ([(x tₐ) (in-hash api-ret)])
+          (define-values (_tₐ Tₐ) (api-typ->rkt tₐ))
+          (define tₓ-list (hash-ref api-arg x))
+          (with-syntax ([x₀ (datum->syntax src x)]
+                        [x (->id (c-fun->rkt x))]
+                        [_tₐ (->id _tₐ)]
+                        [(_tₓ ...)
+                         (for/list ([tₓ (in-list tₓ-list)])
+                           (match-define (cons in? t) tₓ)
+                           (match t
+                             [(cons _ t)
+                              (define-values (_t T) (api-typ->rkt t))
+                              (with-syntax ([_t (->id _t)])
+                                #'(_list i _t))]
+                             [t
+                              (define-values (_t T) (api-typ->rkt t))
+                              (->id _t)]))])
+            (provides-add! #'x)
+            #'(define x (get-z3 x₀ (_fun _tₓ ... -> _tₐ)))))))
 
     (define stx
       #`(begin
           #,@define-opaque-cpointers
           #,@define-enums
+          #,@define-bindings
           (provide #,@(provides))))
     (printf "Gen:~n")
     (pretty-write (syntax->datum stx))
     stx))
 
-(define-syntax (do-it stx) (gen stx))
+(define libz3
+  (let ([lib-name (case (system-type 'os)
+                    [(unix) "libz3.so"]
+                    [(windows) "z3.dll"]
+                    [(macosx) "libz3.dylib"])])
+    (define Z3_LIB "Z3_LIB")
+    (define libz3-path (getenv Z3_LIB))
+    (cond
+      [libz3-path
+       (define libz3-without-suffix (path-replace-extension (build-path libz3-path lib-name) ""))
+       (ffi-lib libz3-without-suffix)]
+      [else
+       (error 'z3-rkt
+              "Cannot locate Z3 libary. Please set ${~a} to the directory containing ~a"
+              Z3_LIB
+              lib-name)])))
 
-(do-it)
+(define (get-z3 x t) (get-ffi-obj x libz3 t))
+
+(splicing-let-syntax ([do-it (λ (stx) (gen stx))])
+  (do-it))
