@@ -44,12 +44,22 @@
     [(regexp #rx"^Z3_(.+)$" (list _ (? string? s)))
      (string-replace (string-downcase s) "_" "-")]))
 
-(: c-fun->rkt : String → String)
+(: c-fun->rkt ([String] [#:type (U 'pred 'bang #f)] . ->* . String))
 ;; Convert C name to Racket name
-(define c-fun->rkt
-  (match-lambda
+(define (c-fun->rkt x #:type [type #f])
+  (match x
     [(regexp #rx"^Z3_(.+)$" (list _ (? string? s)))
-     (assert (regexp-replaces s '([#rx"_to_" "->"]
-                                  [#rx"_" "-"]))
-             string?)]))
+     (c-val->rkt s #:type type)]))
+
+(: c-val->rkt ([String] [#:type (U 'pred 'bang #f)] . ->* . String))
+(define (c-val->rkt s #:type [type #f])
+  (define base-pats
+    '([#rx"_to_" "->"]
+      [#rx"_" "-"]))
+  (define pats
+    (case type
+      [(pred) (cons '[#rx"^is_(.+)$" "\\1?"] base-pats)]
+      [(bang) (cons '[#rx"^(.+)$" "\\1!"] base-pats)]
+      [(#f)   base-pats]))
+  (assert (regexp-replaces s pats) string?))
 
