@@ -12,41 +12,27 @@
                      racket/pretty
                      "scrape.rkt"
                      "conventions.rkt")
+         syntax/parse/define
          racket/list
          racket/splicing
          ffi/unsafe
          racket/string
          racket/match)
 
-#|
-* Untyped FFI:
-  - [x] convert type name -> ffi-name
-  - [ ] convert def-api value name -> ffi-name
-  - [x] declare tagged cpointers for opaque types
-  - [x] define enums for enums
-  - for each entry in def-api:
-    + [ ] multiple out params -> racket multiple returns
-    + [ ] arrays with length -> racket tuple
-      * 1  -> values
-      * 2  -> cons
-      * 3+ -> list
-    + [ ] 1 out-param with success flag -> optional (assume no overlap with boolean)
-    + [ ] 1 length and 1 array -> varargs
-    + [ ] void with no out -> suffix `!`
-    + [ ] boolean with no out -> suffix `?`
-|#
-
 (begin-for-syntax
 
+  ;; Return the first index in `xs` whose element is equal to `x`
   (define (ith x xs)
     (for/first ([(xᵢ i) (in-indexed xs)] #:when (equal? xᵢ x))
       i))
 
+  ;; Generate syntax for accessing the `ith` element of an `n`-sized tuple `tup`
   (define/contract (access-tuple tup n i)
-    (syntax? exact-nonnegative-integer? exact-nonnegative-integer? . -> . (or/c #f syntax?))
+    (syntax? exact-nonnegative-integer? exact-nonnegative-integer? . -> . syntax?)
     (with-syntax ([tup tup])
       (match* (n i)
-        [(1 _) #f]
+        [(0 _) (error 'access-tuple "should not happen: 0-sized tuple")]
+        [(1 _) #'tup]
         [(2 0) #'(map car tup)]
         [(2 1) #'(map cdr tup)]
         [(_ i)
@@ -202,12 +188,13 @@
                   (define indices (array-indices in? n))
                   (define tup-size (length indices))
                   (define idx (ith i indices))
-                  (define lₛ@i (access-tuple (format-id #f "~a" (array-name in? n))
-                                             tup-size
-                                             idx))
-                  (with-type-id [_t t]
-                    (cond [lₛ@i #`(xᵢ : (_list i _t) = #,lₛ@i)]
-                          [else #'(xᵢ : (_list i _t))]))])]
+                  (with-syntax ([lₛ@i (access-tuple (format-id #f "~a" (array-name in? n))
+                                                    tup-size
+                                                    idx)])
+                    (with-type-id [_t t]
+                      (cond [(and (identifier? #'lₛ@i) (free-identifier=? #'lₛ@i #'xᵢ))
+                             #'(xᵢ : (_list i _t))]
+                            [else #`(xᵢ : (_list i _t) = lₛ@i)])))])]
               [else
                (match t*
                  [(? string? t)
@@ -229,7 +216,10 @@
                  [(list x) x]
                  [xs #`(values #,@xs)])])
           (match* (out-ids tₐ)
-            [((list a) "BOOL") #`(and res #,a)]
+            [((list a) "BOOL")
+             (case a
+               [("BOOL") #`(and res (list #,a))]
+               [else #`(and res #,a)])]
             [(_ "VOID")
              (cond [(null? out-ids) #`res]
                    [else (-values out-ids)])]
@@ -279,7 +269,7 @@
                                (syntax->list #'(z₀ ...))
                                (syntax->list #'(x₀ ...))))
            #'(_fun (x₀ ... . xₙ) ::
-                   (x₀ : tₒ) ...
+                   (x₀ : t₀) ...
                    (n : _uint = (length xₙ))
                    (xₙ : (_list i tₙ))
                    -> res ...)]
@@ -301,7 +291,7 @@
                       [f₀ (datum->syntax src f₀)]
                       [sig sig])
           (provides-add! #'f)
-          #'(define f (get-z3 f₀ sig)))))
+          #'(define-z3 f f₀ sig))))
 
     (define stx
       #`(begin
@@ -330,7 +320,8 @@
               Z3_LIB
               lib-name)])))
 
-(define (get-z3 x t) (get-ffi-obj x libz3 t))
+(define-simple-macro (define-z3 x:id c-name:str t)
+  (define x (get-ffi-obj c-name libz3 t)))
 
 (splicing-let-syntax ([do-it (λ (stx) (gen stx))])
   (do-it))
