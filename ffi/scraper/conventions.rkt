@@ -55,7 +55,7 @@
 (: c-val->rkt ([String] [#:type (U 'pred 'bang #f)] . ->* . String))
 (define (c-val->rkt s #:type [type #f])
   (define base-pats
-    '([#rx"_to_" "->"]
+    '([#px"^([[:alnum:]]+)_to_([[:alnum:]]+)$" "\\1->\\2"]
       [#rx"_" "-"]))
   (define pats
     (case type
