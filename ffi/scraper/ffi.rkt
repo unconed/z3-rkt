@@ -22,6 +22,8 @@
 
 (begin-for-syntax
 
+  (define/contract stx-opaques (hash/c string? string?) (make-hash))
+
   ;; Return the first index in `xs` whose element is `equal?` to `x`
   (define (ith x xs)
     (for/first ([(xᵢ i) (in-indexed xs)] #:when (equal? xᵢ x))
@@ -74,6 +76,7 @@
                       (c-typ->rkt x))])
         (for/list ([_t (in-list _ts)] [t? (in-list t?s)])
           (provides-add! (->id t?))
+          (hash-set! stx-opaques _t t?)
           (with-syntax ([_t (->id _t)])
             #'(define-cpointer-type _t)))))
 
@@ -250,12 +253,42 @@
           (provides-add! #'f)
           #'(define-z3 f f₀ sig))))
 
+    ;; Compile-time-communication of generated bindings
+    (define stx-mk-opaques
+      #`(list
+         #,@(for/list ([(k v) stx-opaques])
+              #`(cons #,k #,v))))
+    (define stx-mk-enums
+      (datum->syntax
+       src
+       (for/hash ([def define-enums])
+         (syntax-parse def
+           [((~literal define) t:id (_enum ((~literal quote) (v ...)) _))
+            (values (syntax-e #'t)
+                    (for*/list ([s (in-list (syntax->list #'(v ...)))]
+                                [sᵥ (in-value (syntax-e s))]
+                                #:when (symbol? sᵥ)
+                                #:unless (equal? '= sᵥ))
+                      sᵥ))]))))
+    (define stx-mk-sigs
+      (datum->syntax
+       src
+       (for/hash ([def define-bindings])
+         (syntax-parse def
+           [((~literal define-z3) f:id _ t)
+            (values (syntax-e #'f) #'t)]))))
+
     (let ([stx #`(begin
-                   (provide define-z3 #,@(provides))
+                   (provide define-z3 #,@(provides)
+                            (for-syntax opaques enums sigs))
                    #,@define-enums
                    #,@define-opaque-cpointers
-                   #,@define-bindings)])
-      (parameterize ([pretty-print-columns 120])
+                   #,@define-bindings
+                   (define-for-syntax opaques #,stx-mk-opaques)
+                   (define-for-syntax enums #,stx-mk-enums)
+                   (define-for-syntax sigs #,stx-mk-sigs))])
+      ;; Debug
+      #;(parameterize ([pretty-print-columns 120])
         (printf "Generated untyped ffi:~n")
         (pretty-write (syntax->datum stx)))
       stx)))
