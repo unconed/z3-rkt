@@ -212,7 +212,7 @@
                #`(_fun #,user-args :: #,@ins -> res-stx -> #,ans)]))))
 
       ;; Same signature as `sig` but use varargs in some cases
-      (define sig*
+      #;(define sig*
         (syntax-parse sig
           #:literals (_fun -> = length _uint _list)
           [(_fun (z₀:id ... zₙ:id) (~literal ::)
@@ -234,7 +234,7 @@
                    -> res ...)]
           [_ sig]))
       
-      (values sig* sig-type))
+      (values sig sig-type))
 
     ;; Define FFI bindings
     (define/contract define-bindings (listof syntax?)
