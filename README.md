@@ -41,7 +41,7 @@ The API
   | `app_to_ast`, `is_app`, `solver_push`, etc.| `app->ast`, `app?`, `solver-push!`, etc. (renaming based on both name and type)
   | multiple out parameters                    | multiple return values
   | input array(s) with user supplied length(s)| list or list of tuples with computed length
-  | result with success flag                   | optional result, which is either a union or a sum, depending on whether the result overlaps with `Boolean`
+  | result `A` with success flag `Boolean`     | result `U Boolean A` or `U Boolean (List A)`, depending on whether `A` overlaps with `Boolean`
 
 
 
