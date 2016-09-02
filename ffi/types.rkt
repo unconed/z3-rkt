@@ -45,7 +45,7 @@
                      #,@declare-opaques
                      [#:opaque Z3-Null z3-null?]
                      [z3-null Z3-Null]))])
-      (parameterize ([pretty-print-columns 120])
+      #;(parameterize ([pretty-print-columns 120])
           (printf "Generated typed module:~n")
           (pretty-write (syntax->datum stx)))
       (log-info "Finished generating Typed Racket type definitions~n")

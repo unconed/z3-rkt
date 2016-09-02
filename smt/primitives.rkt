@@ -46,7 +46,7 @@
                      (for/list ([i (syntax-e #'n)])
                        (format-id #f "x~a" i)))])
        #'(begin
-           (define (f/c [x : Sort-Expr] ...)
+           (define (f/c [x : Smt-Sort-Expr] ...)
              (v (get-context) (sort-expr->_z3-sort x) ...))
            (provide f/c)))]))
 
@@ -62,7 +62,7 @@
                           (for/list ([i (syntax-e #'k)])
                             (format-id #f "x~a" i)))])
             #'(begin
-                (define (f/s [x : Expr] ...)
+                (define (f/s [x : Smt-Expr] ...)
                   #;(printf "Applying ~a to ~a~n"
                           'f/s
                           (list `(,(ast->string (get-context) (expr->_z3-ast x)) :
@@ -71,13 +71,13 @@
                 (provide f/s)))]
          [(~literal *)
           #'(begin
-              (define (f/s . [xs : Expr *])
+              (define (f/s . [xs : Smt-Expr *])
                 (define args (map expr->_z3-ast xs))
                 #;(printf "Applying ~a to ~a~n"
                           'f/s
                           (for/list : (Listof String) ([arg args])
                             (ast->string (get-context) arg)))
-                (apply v (get-context) (map expr->_z3-ast xs)))
+                (v (get-context) (map expr->_z3-ast xs)))
               (provide f/s))]
          [(~literal lassoc)
           #'(begin
@@ -93,20 +93,20 @@
 ;;;;; from old `builtins.rkt`
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(: rassoc : (Z3:Ast Z3:Ast → Z3:Ast) → Expr Expr * → Z3:Ast)
+(: rassoc : (Z3-Ast Z3-Ast → Z3-Ast) → Smt-Expr Smt-Expr * → Z3-Ast)
 ;; Wraps a binary function so that arguments are processed
 ;; in a right-associative manner.
 (define ((rassoc fn) . args)
-  (let loop ([args : (Listof Expr) args])
+  (let loop ([args : (Listof Smt-Expr) args])
     (match args
       [(list arg) (expr->_z3-ast arg)]
       [(cons arg args*)
        (fn (expr->_z3-ast arg) (loop args*))])))
 
-(: lassoc : (Z3:Ast Z3:Ast → Z3:Ast) → Expr Expr * → Z3:Ast)
+(: lassoc : (Z3-Ast Z3-Ast → Z3-Ast) → Smt-Expr Smt-Expr * → Z3-Ast)
 ;; Wraps a binary function so that arguments are processed in a left-associative manner.
 (define ((lassoc fn) fst . rst)
-  (for/fold ([acc : Z3:Ast (expr->_z3-ast fst)]) ([x rst])
+  (for/fold ([acc : Z3-Ast (expr->_z3-ast fst)]) ([x rst])
     (fn acc (expr->_z3-ast x))))
 
 ;; Builtin constants
@@ -165,7 +165,7 @@
 (define-builtin-proc subset mk-set-subset 2)
 
 ;; Apply
-(: @/s : Symbol Expr * → Z3:Ast)
+(: @/s : Symbol Smt-Expr * → Z3-Ast)
 (define (@/s f . xs)
   #;(printf "@/s ~a ~a~n"
           f
@@ -188,7 +188,7 @@
                             (make-symbol 'x)
                             (assert (sort-expr->_z3-sort t) z3-sort?))] ...)
            (define new-vals
-             (for/hasheq : (HashTable Symbol Z3:Ast) ([xᵢ (in-list '(x ...))]
+             (for/hasheq : (HashTable Symbol Z3-Ast) ([xᵢ (in-list '(x ...))]
                                                       [cᵢ (in-list (list x ...))])
                (values xᵢ (app->ast ctx cᵢ))))
            (define-values (body patterns)
@@ -209,10 +209,10 @@
     [xs
      (define ctx (get-context))
      (define bounds
-       (for/list : (Listof Z3:App) ([x xs] [t ts])
+       (for/list : (Listof Z3-App) ([x xs] [t ts])
          (mk-const ctx (make-symbol x) (assert (sort-expr->_z3-sort t) z3-sort?))))
      (define new-vals
-       (for/hasheq : (HashTable Symbol Z3:Ast) ([x xs] [c bounds])
+       (for/hasheq : (HashTable Symbol Z3-Ast) ([x xs] [c bounds])
          (values x (app->ast ctx c))))
      (define-values (body patterns)
        (with-extended-vals new-vals

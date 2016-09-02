@@ -11,11 +11,16 @@
          racket/splicing
          "../ffi/main.rkt")
 
+(define-type Smt-Expr (U Z3-Ast Z3-App Real Symbol))
+(define-type Smt-Func (Smt-Expr * → Z3-Ast))
+(define-type Smt-Sort-Expr (U Z3-Sort Symbol))
+(define-type Smt-Sort-Func (Smt-Sort-Expr * → Z3-Sort))
+(define-type Smt-Sat (U 'sat 'unsat 'unknown))
 
-(struct Env ([vals  : (HashTable Symbol Z3:Ast)]
-             [funs  : (HashTable Symbol Z3:Func)]
-             [sorts : (HashTable Symbol Z3:Sort)]
-             [sort-funs : (HashTable Symbol Z3:Sort-Func)])
+(struct Env ([vals  : (HashTable Symbol Z3-Ast)]
+             [funs  : (HashTable Symbol Smt-Func)]
+             [sorts : (HashTable Symbol Z3-Sort)]
+             [sort-funs : (HashTable Symbol Smt-Sort-Func)])
   #:mutable
   #:transparent)
 
@@ -34,8 +39,8 @@
                   (parameterize ([param x]) e (... ...)))))]))
      )
   
-  (define-z3-parameter context : Z3:Context)
-  (define-z3-parameter solver  : Z3:Solver)
+  (define-z3-parameter context : Z3-Context)
+  (define-z3-parameter solver  : Z3-Solver)
   (define-z3-parameter env     : Env)
   
   (define get-context raw:get-context)
@@ -66,8 +71,8 @@
                   (with-new-environment
                     e ...)))
         ;(printf "~n")
-        (del-context ctx)
-        (del-config cfg))))
+        (del-context! ctx)
+        (del-config! cfg))))
 
   (define-syntax-rule (init-global-context!)
     (let* ([ctx (mk-context (mk-config))]
@@ -81,7 +86,7 @@
   (define-syntax-rule (destroy-global-context!)
     (let ([ctx (get-context)]) ; TODO: no del-config ...
       (solver-dec-ref! ctx (get-solver))
-      (del-context ctx)
+      (del-context! ctx)
       (context #f)
       (solver #f)
       (env #f)))
@@ -89,21 +94,21 @@
   (define-syntax-rule (with-extended-vals new-vals e ...)
     (match-let ([(Env vals funs sorts sort-funs) (get-env)])
       (define vals*
-        (for/fold ([acc : (HashTable Symbol Z3:Ast) vals])
+        (for/fold ([acc : (HashTable Symbol Z3-Ast) vals])
                   ([(k v) new-vals])
           (hash-set acc k v)))
       (with-env (Env vals* funs sorts sort-funs)
         e ...))))
 
 ;; A symbol table for sorts
-(: sort-of : Symbol → Z3:Sort)
+(: sort-of : Symbol → Z3-Sort)
 (define (sort-of id)
   (define sorts (Env-sorts (get-env)))
   (hash-ref sorts id
             (λ ()
               (error 'sort-of "cannot find `~a` among ~a" id (hash-keys sorts)))))
 
-(: new-sort! : Symbol Z3:Sort → Void)
+(: new-sort! : Symbol Z3-Sort → Void)
 (define (new-sort! id v)
   (define env (get-env))
   (define sorts (Env-sorts env))
@@ -112,43 +117,43 @@
         [else
          (set-Env-sorts! env (hash-set sorts id v))]))
 
-(: set-val! : Symbol Z3:Ast → Void)
+(: set-val! : Symbol Z3-Ast → Void)
 (define (set-val! id v)
   (define env (get-env))
   (define vals (Env-vals env))
   (set-Env-vals! env (hash-set vals id v)))
 
-(: val-of : Symbol → Z3:Ast)
+(: val-of : Symbol → Z3-Ast)
 (define (val-of id)
   (define vals (Env-vals (get-env)))
   (hash-ref vals id (λ ()
                       (error 'val-of "cannot find `~a` among ~a" id (hash-keys vals)))))
 
-(: set-fun! : Symbol Z3:Func → Void)
+(: set-fun! : Symbol Smt-Func → Void)
 (define (set-fun! id v)
   (define env (get-env))
   (define funs (Env-funs env))
   (set-Env-funs! env (hash-set funs id v)))
 
-(: fun-of : Symbol → Z3:Func)
+(: fun-of : Symbol → Smt-Func)
 (define (fun-of id)
   (define funs (Env-funs (get-env)))
   (hash-ref funs id (λ ()
                       (error 'fun-of "cannot find `~a` among ~a" id (hash-keys funs)))))
 
-(: sort-of-fun : Symbol → Z3:Sort-Func)
+(: sort-of-fun : Symbol → Smt-Sort-Func)
 (define (sort-of-fun id)
   (define sort-funs (Env-sort-funs (get-env)))
   (hash-ref sort-funs id (λ ()
                            (error 'sort-of-fun "cannot find `~a` among ~a" id (hash-keys sort-funs)))))
 
-(: set-sort-fun! : Symbol Z3:Sort-Func → Void)
+(: set-sort-fun! : Symbol Smt-Sort-Func → Void)
 (define (set-sort-fun! id v)
   (define env (get-env))
   (define sort-funs (Env-sort-funs env))
   (set-Env-sort-funs! env (hash-set sort-funs id v)))
 
-(: init-env : Z3:Context → Env)
+(: init-env : Z3-Context → Env)
 (define (init-env ctx)
   (Env (hasheq) (hasheq) (hasheq) (hasheq)))
 
@@ -175,7 +180,7 @@
 
 ;; Given an expr, convert it to a Z3 AST. This is a really simple recursive descent parser.
 ;; PN: This no longer is a parser. It only coerces some base values now
-(: expr->_z3-ast : Expr → Z3:Ast)
+(: expr->_z3-ast : Smt-Expr → Z3-Ast)
 (define (expr->_z3-ast e)
   ;(displayln (format "IN: ~a" e))
   (define cur-ctx (get-context))
@@ -196,7 +201,7 @@
   ;(displayln (format "Output: ~a ~a ~a" expr ast (z3:ast->string cur-ctx ast)))
   ast)
 
-(: sort-expr->_z3-sort : Sort-Expr → Z3:Sort)
+(: sort-expr->_z3-sort : Smt-Sort-Expr → Z3-Sort)
 ;; sort-exprs are sort ids, (_ id parameter*), or (id sort-expr*).
 ;; PN: Only have simple sorts for now, which makes it just simple lookup
 (define (sort-expr->_z3-sort expr)
@@ -205,7 +210,7 @@
     [(? z3-sort? expr) expr]
     [_ (error 'sort-expr->_z3-sort "unexpected: ~a" expr)]))
 
-(: mk-func : Z3:Func-Decl Symbol Natural → Z3:Func)
+(: mk-func : Z3-Func-Decl Symbol Natural → Smt-Func)
 ;; Make a 1st order Z3 function out of func-decl
 (define (mk-func f-decl name n)
   (λ xs
@@ -219,11 +224,11 @@
                        (define arg-str (ast->string ctx arg))
                        (define sort (sort->string ctx (z3-sort-of ctx arg)))
                        `(,arg-str : ,sort)))
-           (apply mk-app ctx f-decl args)]
+           (mk-app ctx f-decl args)]
           [else
            (error name "expect ~a arguments, given ~a" n num-xs)])))
 
-(: make-symbol : (U Symbol String) → Z3:Symbol)
+(: make-symbol : (U Symbol String) → Z3-Symbol)
 ;; Helper function to make a symbol with the given name (Racket symbol)
 (define (make-symbol s)
   (cond [(string? s) (mk-string-symbol (get-context) s)]
@@ -234,7 +239,7 @@
 ;;;;; Hack for set-options!
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-type Param-Range (U Boolean Nonnegative-Fixnum Inexact-Real Symbol))
+(define-type Param-Range (U Boolean Nonnegative-Fixnum Flonum Symbol))
 (require/typed racket/base
   [(make-keyword-procedure
     make-set-options-procedure)
@@ -270,7 +275,7 @@
       #:qe-nonlinear? Boolean
       #:mul2concat? Boolean
       #:max-steps Nonnegative-Fixnum
-      #:random-freq Inexact-Real
+      #:random-freq Flonum
       #:candidate-models? Boolean
       #:phase.caching.on Nonnegative-Fixnum
       #:max-args Nonnegative-Fixnum
@@ -290,7 +295,7 @@
       #:blast-distinct? Boolean
       #:bv.reflect? Boolean
       #:resolution.occ-cutoff Nonnegative-Fixnum
-      #:dack.factor Inexact-Real
+      #:dack.factor Flonum
       #:split-concat-eq? Boolean
       #:reorder? Boolean
       #:mbqi.id Symbol ; TODO: "string"
@@ -352,7 +357,7 @@
       #:som-blowup Nonnegative-Fixnum
       #:sort-sums? Boolean
       #:bvnot2arith? Boolean
-      #:qi.lazy-threshold Inexact-Real
+      #:qi.lazy-threshold Flonum
       #:proof? Boolean
       #:max-prime Nonnegative-Fixnum
       #:qi.max-multi-patterns Nonnegative-Fixnum
@@ -380,7 +385,7 @@
       #:nla2bv-bv-size Nonnegative-Fixnum
       #:model? Boolean
       #:solve-eqs-max-occs Nonnegative-Fixnum
-      #:restart-factor Inexact-Real
+      #:restart-factor Flonum
       #:auto-config? Boolean
       #:phase.caching.off Nonnegative-Fixnum
       #:restart Symbol
@@ -395,7 +400,7 @@
       #:factor-num-primes Nonnegative-Fixnum
       #:expand-select-store? Boolean
       #:arith.nl? Boolean
-      #:restart.factor Inexact-Real
+      #:restart.factor Flonum
       #:complete? Boolean
       #:max-memory Nonnegative-Fixnum
       #:blast-mul? Boolean
@@ -410,7 +415,7 @@
       #:subsumption.limit Nonnegative-Fixnum
       #:burst-search Nonnegative-Fixnum
       #:algebraic-number-evaluator? Boolean
-      #:qi.eager-threshold Inexact-Real
+      #:qi.eager-threshold Flonum
       #:blast-full? Boolean
       #:lazy Nonnegative-Fixnum
       #:arith.int-eq-branch? Boolean
@@ -420,7 +425,7 @@
       #:push-ite-arith? Boolean
       #:arith.greatest-error-pivot? Boolean
       #:shuffle-vars? Boolean
-      #:dack.gc-inv-decay Inexact-Real
+      #:dack.gc-inv-decay Flonum
       #:qi.max-instances Nonnegative-Fixnum
       #:mbqi.max-cexs-incr Nonnegative-Fixnum
       #:push-to-real? Boolean
@@ -466,7 +471,7 @@
           (define k-sym (make-symbol k))
           (cond [(boolean? v)      (params-set-bool!   c prms k-sym v)]
                 [(fixnum? v)       (params-set-uint!   c prms k-sym v)]
-                [(inexact-real? v) (params-set-double! c prms k-sym v)]
+                [(flonum? v)       (params-set-double! c prms k-sym v)]
                 [else              (params-set-symbol! c prms k-sym (make-symbol v))]))
         (solver-set-params! c (get-solver) prms)
         (params-dec-ref! c prms)))

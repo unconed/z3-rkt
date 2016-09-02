@@ -154,11 +154,9 @@
           #'[x T])))
     
     (let ([_ (log-info "Generating Typed Racket bindings...~n")]
-          [stx #`(begin
-                   (provide (all-from-out "types.rkt"))
-                   (require/typed/provide "ffi.rkt"
-                     #,@declare-bindings))])
-      (parameterize ([pretty-print-columns 120])
+          [stx #`(require/typed/provide "ffi.rkt"
+                   #,@declare-bindings)])
+      #;(parameterize ([pretty-print-columns 120])
         (printf "Generated typed module:~n")
         (pretty-write (syntax->datum stx)))
       (log-info "Finished generating Typed Racket bindings~n")
@@ -166,3 +164,5 @@
 
 (splicing-let-syntax ([do-it! (λ (stx) (gen stx))])
   (do-it!))
+
+(provide (all-from-out "types.rkt"))

@@ -48,7 +48,7 @@
 (require/typed racket/syntax
   [format-symbol (String Any * → Symbol)])
 
-(: dynamic-declare-sort : Symbol → Z3:Sort)
+(: dynamic-declare-sort : Symbol → Z3-Sort)
 ;; Declare a new sort.
 (define (dynamic-declare-sort id)
   (define T (mk-uninterpreted-sort (get-context) (make-symbol id)))
@@ -58,9 +58,9 @@
 (define-simple-macro (declare-sort T:id) (define T (dynamic-declare-sort 'T)))
 
 (: dynamic-declare-fun
-   (case-> [Symbol Null Sort-Expr → Z3:Ast]
-           [Symbol (Pairof Sort-Expr (Listof Sort-Expr)) Sort-Expr → Z3:Func]
-           [Symbol (Listof Sort-Expr) Sort-Expr → (U Z3:Ast Z3:Func)]))
+   (case-> [Symbol Null Smt-Sort-Expr → Z3-Ast]
+           [Symbol (Pairof Smt-Sort-Expr (Listof Smt-Sort-Expr)) Smt-Sort-Expr → Smt-Func]
+           [Symbol (Listof Smt-Sort-Expr) Smt-Sort-Expr → (U Z3-Ast Smt-Func)]))
 ;; Declare a new function. Each `D` is a sort-expr.
 (define (dynamic-declare-fun f-id dom rng)
   (define ctx (get-context))
@@ -72,14 +72,14 @@
      (set-val! f-id v)
      v]
     [else
-     (define dom-sorts (cast (map sort-expr->_z3-sort dom) (Listof Z3:Sort)))
+     (define dom-sorts (cast (map sort-expr->_z3-sort dom) (Listof Z3-Sort)))
      (define v (mk-func (mk-func-decl ctx name dom-sorts rng-sort)
                         f-id
                         (length dom)))
      (set-fun! f-id v)
      v]))
 
-(: dynamic-declare-const : Symbol Sort-Expr → Z3:Ast)
+(: dynamic-declare-const : Symbol Smt-Sort-Expr → Z3-Ast)
 (define (dynamic-declare-const c-id rng) (dynamic-declare-fun c-id '() rng))
 
 (define-simple-macro (declare-fun f:id (D ...) R)
@@ -87,11 +87,11 @@
 (define-simple-macro (declare-const c:id T) (declare-fun c () T))
 
 (: constr->_z3-constructor :
-   (Setof Symbol) Symbol (Listof (List Symbol Sort-Expr)) → Z3:Constructor)
+   (Setof Symbol) Symbol (Listof (List Symbol Smt-Sort-Expr)) → Z3-Constructor)
 (define (constr->_z3-constructor recursive-sort-names k field-list)
   (define names-sorts-refs
-    (for/list : (Listof (List Z3:Symbol (U Z3:Sort Z3:Null) Nonnegative-Fixnum))
-              ([field : (List Symbol Sort-Expr) field-list])
+    (for/list : (Listof (List Z3-Symbol (U Z3-Sort Z3-Null) Nonnegative-Fixnum))
+              ([field : (List Symbol Smt-Sort-Expr) field-list])
       (match-define (list x t) field)
       (define nameᵢ (make-symbol x))
       (define sortᵢ
@@ -107,16 +107,16 @@
 
 (: dynamic-declare-datatype :
    Symbol
-   (Listof (U Symbol (Pairof Symbol (Listof (List Symbol (U Symbol Z3:Sort))))))
-   → (Values Z3:Sort
-             (Listof (List (U Z3:Ast Z3:Func) Z3:Func (Listof Z3:Func)))))
+   (Listof (U Symbol (Pairof Symbol (Listof (List Symbol (U Symbol Z3-Sort))))))
+   → (Values Z3-Sort
+             (Listof (List (U Z3-Ast Smt-Func) Smt-Func (Listof Smt-Func)))))
 ;; TODO: type parameters
 (define (dynamic-declare-datatype T-id vrs)
   (define cur-ctx (get-context))
 
   ;; create constructors
   (define constructors
-    (for/list : (Listof Z3:Constructor) ([vr vrs])
+    (for/list : (Listof Z3-Constructor) ([vr vrs])
       (match vr
         [(cons k flds) (constr->_z3-constructor {seteq T-id} k flds)]
         [(? symbol? k) (constr->_z3-constructor {seteq T-id} k '())])))
@@ -127,7 +127,7 @@
   
   ;; define constructor/tester/accessors for each variant
   (define variants
-    (for/list : (Listof (List (U Z3:Ast Z3:Func) Z3:Func (Listof Z3:Func)))
+    (for/list : (Listof (List (U Z3-Ast Smt-Func) Smt-Func (Listof Smt-Func)))
               ([constr constructors] [vr vrs])
       (define-values (K-name field-names)
         (match vr
@@ -139,11 +139,11 @@
                       (query-constructor cur-ctx constr (length field-names))])
           (values pre-K-decl
                   (mk-func p-decl p-name 1)
-                  (for/list : (Listof Z3:Func) ([ac-decl ac-decls] [field-name field-names])
+                  (for/list : (Listof Smt-Func) ([ac-decl ac-decls] [field-name field-names])
                     (mk-func ac-decl field-name 1)))))
       (define K
         (if (null? field-names)
-            (mk-app cur-ctx pre-K-decl)
+            (mk-app cur-ctx pre-K-decl '())
             (mk-func pre-K-decl K-name (length field-names))))
       (if (z3-ast? K)
           (set-val! K-name K)
@@ -154,7 +154,7 @@
       (list K p acs)))
   
   ;; TODO: make sure this is safe
-  (for ([c constructors]) (del-constructor cur-ctx c))
+  (for ([c constructors]) (del-constructor! cur-ctx c))
   
   (values T variants))
 
@@ -229,7 +229,7 @@
                      #`(begin
                          (define-values (#,K #,p)
                            (let-values ([(mk-K #,p _) (query-constructor cur-ctx #,con-K 0)])
-                             (values (mk-app cur-ctx mk-K) (mk-func #,p '#,p 1))))
+                             (values (mk-app cur-ctx mk-K '()) (mk-func #,p '#,p 1))))
                          (set-val! '#,K #,K)
                          (set-fun! '#,p #,p)))]
                   [else
@@ -251,27 +251,27 @@
      ;(pretty-print (syntax->datum gen))
      gen]))
 
-(: assert! : Expr → Void)
+(: assert! : Smt-Expr → Void)
 (define (assert! e)
   (solver-assert! (get-context) (get-solver) (expr->_z3-ast e)))
 
-(: check-sat : → Z3:Sat-LBool)
+(: check-sat : → Smt-Sat)
 (define (check-sat)
   (case (solver-check (get-context) (get-solver))
-    [(true) 'sat]
-    [(false) 'unsat]
-    [(undef) 'unknown]))
+    [(l-true) 'sat]
+    [(l-false) 'unsat]
+    [(l-undef) 'unknown]))
 
-(: check-sat/model : → (U Z3:Model 'unsat 'unknown))
+(: check-sat/model : → (U Z3-Model 'unsat 'unknown))
 (define (check-sat/model)
   (case (solver-check (get-context) (get-solver))
-    [(true) (solver-get-model (get-context) (get-solver))]
-    [(false) 'unsat]
-    [(undef) 'unknown]))
+    [(l-true) (solver-get-model (get-context) (get-solver))]
+    [(l-false) 'unsat]
+    [(l-undef) 'unknown]))
 
-(: pattern-of : Z3:Ast Z3:Ast * → Z3:Pattern)
+(: pattern-of : Z3-Ast Z3-Ast * → Z3-Pattern)
 (define (pattern-of ast . asts)
-  (apply mk-pattern (get-context) ast asts))
+  (mk-pattern (get-context) (cons ast asts)))
 
 (: get-stats : → (HashTable Symbol (U Inexact-Real Nonnegative-Fixnum)))
 (define (get-stats)
@@ -298,20 +298,20 @@
   (for ([i (ast-vector-size ctx assertions)])
     (printf "~a~n" (ast->string ctx (ast-vector-get ctx assertions i)))))
 
-(: get-param-descriptions : → (HashTable Symbol Z3:Param-Kind))
+(: get-param-descriptions : → (HashTable Symbol Z3-Param-Kind))
 (define (get-param-descriptions)
   (define c (get-context))
   (define pd (solver-get-param-descrs c (get-solver)))
   (param-descrs-inc-ref! c pd)
   (begin0
-      (for/hasheq : (HashTable Symbol Z3:Param-Kind) ([i (param-descrs-size c pd)])
+      (for/hasheq : (HashTable Symbol Z3-Param-Kind) ([i (param-descrs-size c pd)])
         (define k-sym (param-descrs-get-name c pd i))
         (define k (string->symbol (string-replace (get-symbol-string c k-sym) "_" "-")))
         (define t (param-descrs-get-kind c pd k-sym))
         (values k t))
     (param-descrs-dec-ref! c pd)))
 
-;; Functions that are written in terms of the base functions in main.rkt and
+;; Smt-Functions that are written in terms of the base functions in main.rkt and
 ;; builtins.rkt.
 
 ;; Define a function using universal quantifiers as a sort of macro.
@@ -328,8 +328,8 @@
      ;; But I can't figure out how to use `macro-finder` from C API for now
      (define n (length (syntax->list #'(x ...))))
      #`(begin
-         (define f : Z3:Func
-           (let ([m : (HashTable (Listof Expr) Z3:Ast) (make-hash)])
+         (define f : Smt-Func
+           (let ([m : (HashTable (Listof Smt-Expr) Z3-Ast) (make-hash)])
              (match-lambda*
                [(and xs (list x ...))
                 (hash-ref! m xs (λ () e))]
