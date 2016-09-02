@@ -59,7 +59,7 @@
       [#rx"_" "-"]))
   (define pats
     (case type
-      [(pred) (cons '[#rx"^is_(.+)$" "\\1?"] base-pats)]
+      [(pred) (list* '[#rx"^is_(.+)$" "\\1?"] '[#rx"^(.+)_is_(.+)" "\\1-is-\\2?"] base-pats)]
       [(bang) (cons '[#rx"^(.+)$" "\\1!"] base-pats)]
       [(#f)   base-pats]))
   (assert (regexp-replaces s pats) string?))
