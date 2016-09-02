@@ -355,6 +355,6 @@
      (gen #'path (get-pure-port (string->url (syntax-e #'path))))]))
 
 (do-it!
- #:local "Z3-api/Z3_ C API.html"
- ;#:http "http://research.microsoft.com/en-us/um/redmond/projects/z3/code/group__capi.html"
+ ;#:local "Z3-api/Z3_ C API.html"
+ #:http "http://research.microsoft.com/en-us/um/redmond/projects/z3/code/group__capi.html"
  )
