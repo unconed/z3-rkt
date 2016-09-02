@@ -48,8 +48,10 @@ before_script:
 # required packages without getting stuck on a confirmation prompt.
 script:
   - export Z3_LIB="${HOME}/z3/lib"
-  - raco make z3/smt/main.rkt
-  - raco test z3/tests/guide.rkt
+  - raco make z3/main.rkt
+  - cd z3
+  - raco pkg install
+  - raco test tests/guide.rkt
 
 # NOTE: If your repo is a Racket package with an info.rkt that
 # includes some `deps`, the following is more elegant:
