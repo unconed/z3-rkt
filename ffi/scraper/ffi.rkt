@@ -21,7 +21,7 @@
          racket/match)
 
 (begin-for-syntax
-
+  
   (define/contract stx-opaques (hash/c string? string?) (make-hash))
 
   ;; Return the first index in `xs` whose element is `equal?` to `x`
@@ -239,19 +239,36 @@
     ;; Define FFI bindings
     (define/contract define-bindings (listof syntax?)
       (for/list ([(f₀ tₐ) (in-hash api-ret)])
-        (define-values (sig type)
-          (let* ([args (hash-ref api-arg f₀)]
-                 [arg-names
-                  (match (hash-ref sig-arg f₀ #f)
-                    [#f (build-vector (length args) (λ (i) (format "x_~a" i)))]
-                    [xs (for/vector #:length (length args) ([x xs])
-                          (c-val->rkt (car x)))])])
-            (sig->_fun arg-names args tₐ)))
-        (with-syntax ([f (->id (c-fun->rkt f₀ #:type type))]
-                      [f₀ (datum->syntax src f₀)]
-                      [sig sig])
-          (provides-add! #'f)
-          #'(define-z3 f f₀ sig))))
+        (case f₀
+          ;; HACK handle special cases separately because they accept null arguments
+          [("Z3_mk_constructor")
+           (with-syntax ([f (->id (c-fun->rkt f₀))]
+                         [f₀ (datum->syntax src f₀)])
+             (provides-add! #'f)
+             #'(define-z3 f f₀
+                 (_fun (c name recognizer field-names+sorts+sort-refs) ::
+                       (c : _z3-context)
+                       (name : _z3-symbol)
+                       (recognizer : _z3-symbol)
+                       (num-fields : _uint = (length field-names+sorts+sort-refs))
+                       (field-names : (_list i _z3-symbol) = (map first field-names+sorts+sort-refs))
+                       (sorts : (_list i _z3-sort/null) = (map second field-names+sorts+sort-refs))
+                       (sort-refs : (_list i _uint) = (map third field-names+sorts+sort-refs))
+                       -> _z3-constructor)))]
+          [else
+           (define-values (sig type)
+             (let* ([args (hash-ref api-arg f₀)]
+                    [arg-names
+                     (match (hash-ref sig-arg f₀ #f)
+                       [#f (build-vector (length args) (λ (i) (format "x_~a" i)))]
+                       [xs (for/vector #:length (length args) ([x xs])
+                             (c-val->rkt (car x)))])])
+               (sig->_fun arg-names args tₐ)))
+           (with-syntax ([f (->id (c-fun->rkt f₀ #:type type))]
+                         [f₀ (datum->syntax src f₀)]
+                         [sig sig])
+             (provides-add! #'f)
+             #'(define-z3 f f₀ sig))])))
 
     ;; Compile-time-communication of generated bindings
     (define stx-mk-opaques
@@ -284,6 +301,10 @@
                    #,@define-enums
                    #,@define-opaque-cpointers
                    #,@define-bindings
+                   (begin
+                     (define z3-null #f)
+                     (define z3-null? not)
+                     (provide z3-null z3-null?))
                    (define-for-syntax opaques #,stx-mk-opaques)
                    (define-for-syntax enums #,stx-mk-enums)
                    (define-for-syntax sigs #,stx-mk-sigs))])

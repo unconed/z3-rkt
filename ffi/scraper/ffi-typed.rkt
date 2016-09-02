@@ -135,6 +135,9 @@
         [(~literal _bool) #'Boolean]
         [_t:id
          (match (symbol->string (syntax-e #'_t))
+           [(regexp #rx"^_(.+)/null$" (list _ (? string? s)))
+            (with-syntax ([T (ffi->trkt (format-id src "_~a" s))])
+              #'(U Z3-Null T))]
            [(regexp #rx"^_(.+)$" (list _ (? string? s)))
             (->id (string-titlecase s))]
            [_
@@ -167,8 +170,10 @@
                    #,@declare-enums
                    (require/typed/provide "ffi.rkt"
                      #,@declare-opaques
+                     [#:opaque Z3-Null z3-null?]
+                     [z3-null Z3-Null]
                      #,@declare-bindings))])
-      (parameterize ([pretty-print-columns 120])
+      #;(parameterize ([pretty-print-columns 120])
         (printf "Generated typed module:~n")
         (pretty-write (syntax->datum stx)))
       stx)))
