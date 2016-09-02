@@ -1,4 +1,4 @@
-#lang typed/racket/base
+#lang racket/base
 
 (provide define-z3
          z3-rcf-num?
