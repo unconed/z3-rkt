@@ -1,6 +1,12 @@
 #lang typed/racket/base
 
 (provide
+ Smt-Expr
+ Smt-Func
+ Smt-Sort-Expr
+ Smt-Sort-Func
+ Smt-Sat
+ 
  with-new-context
  init-global-context!
  destroy-global-context!
@@ -242,7 +248,7 @@
                                     (mk-func #,p '#,p 1)
                                     #,@(for/list ([acc accs])
                                          #`(mk-func #,acc '#,acc 1)))))
-                       (del-constructor cur-ctx #,con-K) ; TODO make sure it's safe
+                       (del-constructor! cur-ctx #,con-K) ; TODO make sure it's safe
                        (set-fun! '#,K #,K)
                        (set-fun! '#,p #,p)
                        #,@(for/list ([acc accs])
