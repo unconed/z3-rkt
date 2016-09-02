@@ -34,4 +34,6 @@
        [xs* xs*])]))
 
 (define (read-doc in)
-  (clean-up (retain-text (read-html in))))
+  (log-info "Loading Z3 documentation from ~a...~n" in)
+  (begin0 (clean-up (retain-text (read-html in)))
+    (log-info "Finished loading documentation~n")))

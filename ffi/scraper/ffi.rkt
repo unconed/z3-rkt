@@ -300,7 +300,8 @@
            [((~literal define-z3) f:id _ t)
             (values (syntax-e #'f) #'t)]))))
 
-    (let ([stx #`(begin
+    (let ([_ (log-info "Generating Z3 FFI bindings...~n")]
+          [stx #`(begin
                    (provide define-z3 #,@(provides)
                             (for-syntax opaques enums sigs))
                    #,@define-enums
@@ -317,6 +318,7 @@
       #;(parameterize ([pretty-print-columns 120])
         (printf "Generated untyped ffi:~n")
         (pretty-write (syntax->datum stx)))
+      (log-info "Finished generating FFI bindings~n")
       stx)))
 
 (define libz3
@@ -341,6 +343,8 @@
 (define-syntax do-it!
   (syntax-parser
     [(_ #:local path:str) (gen #'path (open-input-file (syntax-e #'path)))]
-    [(_ #:http  path:str) (gen #'path (get-pure-port   (syntax-e #'path)))]))
+    [(_ #:http  path:str) (gen #'path (get-pure-port (string->url (syntax-e #'path))))]))
 
-(do-it! #:local "Z3-api/Z3_ C API.html")
+(do-it!
+ ;#:local "Z3-api/Z3_ C API.html"
+ #:http "http://research.microsoft.com/en-us/um/redmond/projects/z3/code/group__capi.html")

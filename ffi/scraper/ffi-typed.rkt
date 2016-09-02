@@ -165,7 +165,8 @@
                        [T (ffi->trkt (datum->syntax src t))])
           #'[x T])))
     
-    (let ([stx #`(begin
+    (let ([_ (log-info "Generating Typed Racket bindings...~n")]
+          [stx #`(begin
                    (provide #,@(map (compose ffi->trkt ->id) (hash-keys enums)))
                    #,@declare-enums
                    (require/typed/provide "ffi.rkt"
@@ -176,6 +177,7 @@
       #;(parameterize ([pretty-print-columns 120])
         (printf "Generated typed module:~n")
         (pretty-write (syntax->datum stx)))
+      (log-info "Finished generating Typed Racket bindings~n")
       stx)))
 
 (splicing-let-syntax ([do-it! (λ (stx) (gen stx))])
