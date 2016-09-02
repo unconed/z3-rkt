@@ -18,36 +18,115 @@
 
     (define (->id x) (format-id src "~a" x))
 
+    (define/contract (figure-out-type x clauses)
+      (identifier? (listof syntax?) . -> . syntax?)
+
+      (define/contract (get-matching-type) (-> (or/c #f syntax?))
+        (for/or ([clause (in-list clauses)])
+          (syntax-parse clause
+            [(z:id (~literal :) t _ ...) #:when (free-identifier=? #'z x)
+             (ffi->trkt #'t)]
+            [_ #f])))
+
+      (define/contract (collect-array-type) (-> (or/c #f syntax?))
+        (match (filter values
+                       (for/list ([clause (in-list clauses)])
+                         (syntax-parse clause
+                           [(z:id (~literal :) t (~literal =) ((~literal map) _ l:id))
+                            #:when (free-identifier=? #'l x)
+                            (syntax-parse (ffi->trkt #'t)
+                              [((~literal Listof) T) #'T])]
+                           [_ #f])))
+          ['()
+           (error 'collect-array-type "impossible: 0-sized tuple")]
+          [(list T₁ T₂)
+           #`(Listof (Pairof #,T₁ #,T₂))]
+          [Ts #`(Listof (List #,@Ts))]))
+      
+      (or (get-matching-type)
+          (collect-array-type)))
+
     (define/contract ffi->trkt
       (syntax? . -> . syntax?)
       (syntax-parser
-        #:literals (_list _fun length)
+        #:literals (_list _fun _ptr length)
         ;; Functions
         [(_fun tₓ:id ... (~literal ->) tₐ:id)
          (with-syntax ([(Tₓ ...)
                         (datum->syntax src (map ffi->trkt (syntax->list #'(tₓ ...))))]
                        [Tₐ (ffi->trkt #'tₐ)])
            #'(Tₓ ... → Tₐ))]
-        [(_fun (x₀:id ... . xₙ:id) (~literal ::)
-               (z₀:id (~literal :) t₀:id) ...
-               (_ (~literal :) _uint = (length lₙ:id))
-               (zₙ:id (~literal :) (_list (~literal i) tₙ:id))
+        [(_fun (x:id (~literal :) tₓ eₓ ...) ... (~literal ->) res ...)
+         (with-syntax ([(z ...)
+                        (filter
+                         values
+                         (for/list ([clause (in-list (syntax->list #'([x tₓ eₓ ...] ...)))])
+                           (syntax-parse clause
+                             #:literals (_list _ptr)
+                             [(_:id ((~or (~literal _list) (~literal _ptr))
+                                     (~literal o)
+                                     _ ...)
+                                    _ ...) #f]
+                             [(x:id _ ...) #'x])))])
+           (ffi->trkt #'(_fun (z ...) :: (x : tₓ eₓ ...) ... -> res ...)))]
+        [(_fun (z:id ...) (~literal ::)
+               (x:id (~literal :) tₓ eₓ ...) ...
                (~literal ->)
-               tₐ:id)
-         #:when (and (free-identifier=? #'xₙ #'lₙ)
-                     (free-identifier=? #'xₙ #'zₙ)
-                     (andmap free-identifier=?
-                             (syntax->list #'(x₀ ...))
-                             (syntax->list #'(z₀ ...))))
-         (with-syntax ([(T₀ ...)
-                        (datum->syntax src (map ffi->trkt (syntax->list #'(t₀ ...))))]
-                       [Tₙ (ffi->trkt #'tₙ)]
-                       [Tₐ (ffi->trkt #'tₐ)])
-           #'(T₀ ... Tₙ * → Tₐ))]
+               res ...)
+         (define clauses
+           (syntax-parse #'(res ...)
+             [(xₐ:id (~literal :) tₐ)
+              (cons #'(xₐ : tₐ) (syntax->list #'([x : tₓ eₓ ...] ...)))]
+             [_ (syntax->list #'([x : tₓ eₓ ...] ...))]))
+         (with-syntax ([(Tₓ ...)
+                        (datum->syntax
+                         src
+                         (for/list ([zᵢ (in-list (syntax->list #'(z ...)))])
+                           (figure-out-type zᵢ clauses)))])
+           (syntax-parse #'(res ...)
+             [(tₐ:id)
+              (with-syntax ([Tₐ (ffi->trkt #'tₐ)])
+                #'(Tₓ ... → Tₐ))]
+             [((res:id (~literal :) tₐ:id) (~literal ->) ans)
+              (with-syntax ([Tₐ (ffi->trkt #'tₐ)])
+                (syntax-parse #'ans
+                  [((~literal and) res rhs)
+                   #:when (free-identifier=? #'tₐ #'_bool)
+                   (syntax-parse #'rhs
+                     [((~literal list) xₐ)
+                      (with-syntax ([Tₓₐ (figure-out-type #'xₐ clauses)])
+                        #'(Tₓ ... → (Option (List Tₓₐ))))]
+                     [xₐ:id
+                      (with-syntax ([Tₓₐ (figure-out-type #'xₐ clauses)])
+                        #'(Tₓ ... → (Option Tₓₐ)))])]
+                  [((~literal values) xₐ₀:id xₐ:id ...)
+                   #:when (free-identifier=? #'res #'xₐ₀)
+                   (with-syntax ([(Tₓₐ ...)
+                                  (datum->syntax
+                                   src
+                                   (for/list ([x (in-list (syntax->list #'(xₐ ...)))])
+                                     (figure-out-type x clauses)))])
+                     #'(Tₓ ... → (Values Tₐ Tₓₐ ...)))]
+                  [xₐ:id
+                   (with-syntax ([Tₓₐ (figure-out-type #'xₐ clauses)])
+                     #'(Tₓ ... → Tₓₐ))]))]
+             [(tₐ:id (~literal ->) ans)
+              (syntax-parse #'ans
+                [((~literal values) xₐ:id ...)
+                 (with-syntax ([(Tₓₐ ...)
+                                (datum->syntax
+                                 src
+                                 (for/list ([x (in-list (syntax->list #'(xₐ ...)))])
+                                   (figure-out-type x clauses)))])
+                   #'(Tₓ ... → (Values Tₓₐ ...)))]
+                [xₐ:id
+                 (with-syntax ([Tₓₐ (figure-out-type #'xₐ clauses)])
+                   #'(Tₓ ... → Tₓₐ))])]))]
         ;; List
-        [(_list (~literal i) t)
+        [(_list _ t _ ...)
          (with-syntax ([T (ffi->trkt #'t)])
            #'(Listof T))]
+        [(_ptr o t) (ffi->trkt #'t)]
         ;; Simple
         [(~or (~literal _int) (~literal _int32) (~literal _int64)) #'Fixnum]
         [(~or (~literal _uint) (~literal _uint32) (~literal _uint64)) #'Nonnegative-Fixnum]
@@ -61,8 +140,8 @@
            [_
             (error 'ffi->trkt "don't know how to convert ~a" (syntax-e #'_t))])]
         [_t
-         (printf "Convert ~a to Any for now~n" (syntax->datum #'_t))
-         #'Any]))
+         (printf "Convert ~a to Nothing for now~n" (syntax->datum #'_t))
+         #'Nothing]))
 
     (define/contract declare-opaques (listof syntax?)
       (for/list ([dec opaques])
