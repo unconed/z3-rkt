@@ -255,6 +255,11 @@
                        (sorts : (_list i _z3-sort/null) = (map second field-names+sorts+sort-refs))
                        (sort-refs : (_list i _uint) = (map third field-names+sorts+sort-refs))
                        -> _z3-constructor)))]
+          [("Z3_mk_const")
+           (with-syntax ([f (->id (c-fun->rkt f₀))]
+                         [f₀ (datum->syntax src f₀)])
+             (provides-add! #'f)
+             #'(define-z3 f f₀ (_fun _z3-context _z3-symbol _z3-sort -> _z3-app)))]
           [else
            (define-values (sig type)
              (let* ([args (hash-ref api-arg f₀)]
@@ -342,8 +347,12 @@
 
 (define-syntax do-it!
   (syntax-parser
-    [(_ #:local path:str) (gen #'path (open-input-file (syntax-e #'path)))]
-    [(_ #:http  path:str) (gen #'path (get-pure-port (string->url (syntax-e #'path))))]))
+    [(_ #:local path:str)
+     (printf "Generating Z3 bindings from documentation at ~a~n" (syntax-e #'path))
+     (gen #'path (open-input-file (syntax-e #'path)))]
+    [(_ #:http  path:str)
+     (printf "Generating Z3 bindings from documentation at ~a~n" (syntax-e #'path))
+     (gen #'path (get-pure-port (string->url (syntax-e #'path))))]))
 
 (do-it!
  #:local "Z3-api/Z3_ C API.html"
