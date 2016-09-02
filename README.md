@@ -40,7 +40,7 @@ The API
   |--------------------------------------------|----------------------------------------
   | `app_to_ast`, `is_app`, `solver_push`, etc.| `app->ast`, `app?`, `solver-push!`, etc. (renaming based on both name and type)
   | multiple out parameters                    | multiple return values
-  | input array(s) with user supplied length(s)| list or list of tuples with computed length
+  | input array(s) with user supplied length(s)| list or list of tuples with computed length. Tuples of size 2 are `Pairof _ _`s. Tuples of size 3+ are `List _ ...`
   | result `A` with success flag `Boolean`     | result `U Boolean A` or `U Boolean (List A)`, depending on whether `A` overlaps with `Boolean`
 
 
