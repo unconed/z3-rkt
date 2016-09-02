@@ -30,9 +30,9 @@ before_install:
   - cat travis-racket/install-racket.sh | bash # pipe to bash not sh!
   - export PATH="${RACKET_DIR}/bin:${PATH}" #install-racket.sh can't set for us
   # Install Z3
-  - git clone https://github.com/Z3Prover/z3.git
-  - cd z3
-  - python scripts/mk_make.py --prefix=${HOME}/z3
+  - git clone https://github.com/Z3Prover/z3.git z3prover
+  - cd z3-lib
+  - python scripts/mk_make.py --prefix=${HOME}/z3prover
   - cd build
   - make
   - make install
@@ -47,7 +47,7 @@ before_script:
 # Tip: Use `raco pkg install --deps search-auto <pkg>` to install any
 # required packages without getting stuck on a confirmation prompt.
 script:
-  - export Z3_LIB="${HOME}/z3/lib"
+  - export Z3_LIB="${HOME}/z3prover/lib"
   - raco make z3/main.rkt
   - cd z3
   - raco pkg install
