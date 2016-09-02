@@ -17,7 +17,7 @@ Installing
 
 ### Install Z3
 
-- `z3-rkt` has been tested with Z3 4.4.1, which you can download and build from [https://github.com/Z3Prover/z3](https://github.com/Z3Prover/z3). The Travis CI script clones current Z3 from Github.
+- `z3-rkt` has been tested with Z3 4.4.1. You can also download and build the lastest version from [https://github.com/Z3Prover/z3](https://github.com/Z3Prover/z3), which the Travis CI script uses
 
 ### Install Z3 Racket bindings
 
