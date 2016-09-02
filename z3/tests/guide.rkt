@@ -4,7 +4,7 @@
 ;; http://rise4fun.com/Z3/tutorial/guide
 
 (require typed/rackunit
-         "../smt/main.rkt")
+         z3/smt)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
