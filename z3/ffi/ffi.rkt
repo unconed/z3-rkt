@@ -48,6 +48,14 @@
             [(_ i)
              (with-syntax ([acc (vector-ref accs i)])
                #'(map acc tup))])))))
+  
+  (define ((gen-from-file src) fn)
+    (printf "Attempt to generate Z3 bindings from local file ~a~n" fn)
+    (gen src (open-input-file fn)))
+  
+  (define ((gen-from-http src) link)
+    (printf "Attempt to generate Z3 bindings from ~a~n" link)
+    (gen src (get-pure-port (string->url link))))
 
   ;; Generate untyped module given syntax source
   (define/contract (gen src in)
@@ -345,16 +353,12 @@
 
 (define-simple-macro (define-z3 x:id c-name:str t) (define x (get-ffi-obj c-name libz3 t)))
 
-(define-syntax do-it!
-  (syntax-parser
-    [(_ #:local path:str)
-     (printf "Generating Z3 bindings from documentation at ~a~n" (syntax-e #'path))
-     (gen #'path (open-input-file (syntax-e #'path)))]
-    [(_ #:http  path:str)
-     (printf "Generating Z3 bindings from documentation at ~a~n" (syntax-e #'path))
-     (gen #'path (get-pure-port (string->url (syntax-e #'path))))]))
-
-(do-it!
- ;#:local "Z3-api/Z3_ C API.html"
- #:http "http://research.microsoft.com/en-us/um/redmond/projects/z3/code/group__capi.html"
- )
+(splicing-let-syntax ([do-it!
+                       (λ (stx)
+                         (cond
+                           [(getenv "Z3_DOC_LOCAL") => (gen-from-file stx)]
+                           [(getenv "Z3_DOC_HTTP" ) => (gen-from-http stx)]
+                           [else
+                            ((gen-from-http stx)
+                             "http://research.microsoft.com/en-us/um/redmond/projects/z3/code/group__capi.html")]))])
+  (do-it!))
