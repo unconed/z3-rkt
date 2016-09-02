@@ -142,10 +142,9 @@
            [(regexp #rx"^_(.+)$" (list _ (? string? s)))
             (->id (string-titlecase s))]
            [_
-            (error 'ffi->trkt "don't know how to convert ~a" (syntax-e #'_t))])]
+            (error "Don't know how to convert `~a` to a type" (syntax->datum #'_t))])]
         [_t
-         (printf "Convert ~a to Nothing for now~n" (syntax->datum #'_t))
-         #'Nothing]))
+         (error "Don't know how to convert `~a` to a type" (syntax->datum #'_t))]))
 
     (define/contract declare-bindings (listof syntax?)
       (for/list ([(x t) (in-hash sigs)])
