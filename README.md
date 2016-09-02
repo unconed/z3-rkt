@@ -47,6 +47,15 @@ Structure
   This is the reccommended way to interact with Z3.
   Examples in [`tests/guide.rkt`](https://github.com/philnguyen/z3-rkt/blob/master/tests/guide.rkt) use this
   
+TODO
+----------
+
+- [ ] Mutually recursive datatypes
+- [ ] Parameterized sorts. This feature does not exist at the C API level.
+- [ ] Several missing functions without `def_API` lines from doc
+- [ ] Scribble?
+- [ ] Figure out package name
+- [ ] Figure out how to make package and register
 
 License
 -------
