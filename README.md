@@ -22,7 +22,7 @@ Installing
 ### Install Z3 Racket bindings
 
 - Set environment variable `Z3_LIB` to the directory containing the Z3 library.
-The library file is named `z3.dll`, `libz3.so` or `libz3.dylib`, depending on your system being Windows, Mac, or Linux, respectively.
+The library file is named `z3.dll`, `libz3.so` or `libz3.dylib`, depending on your system being Windows, Linux, or Mac, respectively.
 
 - Install Z3 bindings
 
