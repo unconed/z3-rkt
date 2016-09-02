@@ -33,7 +33,7 @@ The library file is named `z3.dll`, `libz3.so` or `libz3.dylib`, depending on yo
 The API
 ----------
 
-* [`ffi/`](https://github.com/philnguyen/z3.rkt/tree/master/z3/ffi) defines bindings for low-level Z3 API. The interface is automatically generated at compile-time from the [documentation](http://research.microsoft.com/en-us/um/redmond/projects/z3/code/group__capi.html). A snapshot of the bindings in Typed Racket is in [snapshot/main.rkt.snapshot](https://github.com/philnguyen/z3-rkt/blob/master/z3/ffi/snapshot/main.rkt.snapshot). The low-level Racket interface differs from C in a predictable way:
+* [`z3/ffi`](https://github.com/philnguyen/z3.rkt/tree/master/z3/ffi) defines bindings for low-level Z3 API. The interface is automatically generated at compile-time from the [documentation](http://research.microsoft.com/en-us/um/redmond/projects/z3/code/group__capi.html). A snapshot of the bindings in Typed Racket is in [snapshot/main.rkt.snapshot](https://github.com/philnguyen/z3-rkt/blob/master/z3/ffi/snapshot/main.rkt.snapshot). The low-level Racket interface differs from C in a predictable way:
   
   | C                                          | Racket
   |--------------------------------------------|----------------------------------------
@@ -42,7 +42,7 @@ The API
   | input array(s) with user supplied length(s)| list or list of tuples with computed length. Tuples of size 2 are `Pairof _ _`s. Tuples of size 3+ are `List _ ...`s
   | result `A` with success flag `Boolean`     | result `U Boolean A` or `U Boolean (List A)`, depending on whether `A` overlaps with `Boolean`
 
-* [`smt/`](https://github.com/philnguyen/z3.rkt/tree/master/z3/smt) defines the high-level Z3 API, close to the SMT2 language.
+* [`z3/smt`](https://github.com/philnguyen/z3.rkt/tree/master/z3/smt) defines the high-level Z3 API, close to the SMT2 language.
   This is the reccommended way to interact with Z3.
   Examples in [`tests/guide.rkt`](https://github.com/philnguyen/z3-rkt/blob/master/z3/tests/guide.rkt) use this
   
