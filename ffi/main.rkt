@@ -10,7 +10,8 @@
                      racket/function)
          ffi/unsafe
          racket/splicing
-         "ffi.rkt")
+         "types.rkt"
+         (only-in "ffi.rkt" sigs))
 
 (begin-for-syntax
   
@@ -146,19 +147,6 @@
          (printf "Convert ~a to Nothing for now~n" (syntax->datum #'_t))
          #'Nothing]))
 
-    (define/contract declare-opaques (listof syntax?)
-      (for/list ([dec opaques])
-        (match-define (cons _t t?) dec)
-        (with-syntax ([T (ffi->trkt (->id _t))]
-                      [t? (->id t?)])
-          #'[#:opaque T t?])))
-
-    (define/contract declare-enums (listof syntax?)
-      (for/list ([(t vs) (in-hash enums)])
-        (with-syntax ([t (ffi->trkt (->id t))]
-                      [(v ...) (datum->syntax src (for/list ([v vs]) #`(quote #,v)))])
-          #'(define-type t (U v ...)))))
-
     (define/contract declare-bindings (listof syntax?)
       (for/list ([(x t) (in-hash sigs)])
         (with-syntax* ([x (->id x)]
@@ -167,14 +155,10 @@
     
     (let ([_ (log-info "Generating Typed Racket bindings...~n")]
           [stx #`(begin
-                   (provide #,@(map (compose ffi->trkt ->id) (hash-keys enums)))
-                   #,@declare-enums
+                   (provide (all-from-out "types.rkt"))
                    (require/typed/provide "ffi.rkt"
-                     #,@declare-opaques
-                     [#:opaque Z3-Null z3-null?]
-                     [z3-null Z3-Null]
                      #,@declare-bindings))])
-      #;(parameterize ([pretty-print-columns 120])
+      (parameterize ([pretty-print-columns 120])
         (printf "Generated typed module:~n")
         (pretty-write (syntax->datum stx)))
       (log-info "Finished generating Typed Racket bindings~n")
