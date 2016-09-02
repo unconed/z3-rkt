@@ -6,9 +6,9 @@ Although I develop this package specifically for use in my symbolic execution,
 it should be usable for general-purpose Racket SMT integration.
 I originally forked it from [Siddharth Agarwal's repository](https://github.com/sid0/z3.rkt), then:
 * ported to Typed Racket:
-* generalized `declare-datatypes` to allow complex and recursive datatypes
 * migrated from the deprecated API to the new Solver API
 * ditched all deprecated functions
+* generalized SMT constructs like `declare-datatypes`, `forall/s`, `exists/s`
 * added macro-expansion time scraping of the documentation to automatically generate all FFI bindings (ish) and Typed Racket bindings
 
 
@@ -49,9 +49,9 @@ The API
 TODO
 ----------
 
-- [ ] Mutually recursive datatypes
-- [ ] Parameterized sorts. This feature does not exist at the C API level.
-- [ ] Several missing functions without `def_API` lines from doc
+- [ ] `smt`: Mutually recursive datatypes
+- [ ] `smt`: Parameterized sorts. This feature does not exist at the C API level.
+- [ ] `ffi`: Several missing functions without `def_API` lines from doc
 - [ ] Scribble?
 - [ ] Figure out package name
 - [ ] Figure out how to make package and register
