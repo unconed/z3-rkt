@@ -262,8 +262,13 @@
                      (match (hash-ref sig-arg f₀ #f)
                        [#f (build-vector (length args) (λ (i) (format "x_~a" i)))]
                        [xs (for/vector #:length (length args) ([x xs])
-                             (c-val->rkt (car x)))])])
-               (sig->_fun arg-names args tₐ)))
+                             (c-val->rkt (car x)))])]
+                    [precise-ret
+                     (match* (tₐ (hash-ref sig-ret f₀ #f))
+                       [((or "UINT" "INT") (regexp #rx"^Z3_(.+)$" (list _ (? string? s))))
+                        (string-upcase s)]
+                       [(_ _) tₐ])])
+               (sig->_fun arg-names args precise-ret)))
            (with-syntax ([f (->id (c-fun->rkt f₀ #:type type))]
                          [f₀ (datum->syntax src f₀)]
                          [sig sig])
