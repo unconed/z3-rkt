@@ -31,7 +31,7 @@ before_install:
   - export PATH="${RACKET_DIR}/bin:${PATH}" #install-racket.sh can't set for us
   # Install Z3
   - git clone https://github.com/Z3Prover/z3.git z3prover
-  - cd z3-lib
+  - cd z3prover
   - python scripts/mk_make.py --prefix=${HOME}/z3prover
   - cd build
   - make
