@@ -3,6 +3,7 @@
 (define collection "z3")
 
 (define deps '("base"
+               "html-lib"
                "typed-racket-lib"
                "typed-racket-more"))
 
