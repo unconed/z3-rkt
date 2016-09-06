@@ -44,9 +44,9 @@ The API
   The interface is automatically generated at compile-time from the
   [documentation](http://research.microsoft.com/en-us/um/redmond/projects/z3/code/group__capi.html).
   An example of generated Typed Racket bindings is in
-  [snapshot/main.rkt](https://github.com/philnguyen/z3-rkt/blob/master/snapshot/main.rkt.snapshot),
+  [snapshot/main.rkt](https://github.com/philnguyen/z3-rkt/blob/master/snapshot/main.rkt),
   with (untyped) FFI bindings in
-  [snapshot/ffi.rkt](https://github.com/philnguyen/z3-rkt/blob/master/snapshot/ffi.rkt.snapshot).
+  [snapshot/ffi.rkt](https://github.com/philnguyen/z3-rkt/blob/master/snapshot/ffi.rkt).
   The low-level Racket interface differs from C in a predictable way:
   
   | C                                                                       | Racket
