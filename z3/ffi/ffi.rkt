@@ -335,15 +335,21 @@
       stx)))
 
 (define libz3
-  (let ([lib-name (case (system-type 'os)
-                    [(unix) "libz3.so"]
-                    [(windows) "z3.dll"]
-                    [(macosx) "libz3.dylib"])]
-        [Z3_LIB "Z3_LIB"])
-    (define libz3-path (getenv Z3_LIB))
+  (let-values
+      ([(lib-name default-dir)
+        (case (system-type 'os)
+          [(unix) (values "libz3.so" #f)]
+          [(windows) (values "z3.dll" #f)]
+          [(macosx)
+           (values "libz3.dylib"
+                   ;; Homebrew puts it there
+                   "/usr/local/lib/")])]
+       [(Z3_LIB) "Z3_LIB"])
+    (define libz3-path (or (getenv Z3_LIB) default-dir))
     (cond
       [libz3-path
-       (define libz3-without-suffix (path-replace-extension (build-path libz3-path lib-name) ""))
+       (define libz3-without-suffix
+         (path-replace-extension (build-path libz3-path lib-name) ""))
        (ffi-lib libz3-without-suffix)]
       [else
        (error 'z3-rkt
