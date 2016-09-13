@@ -22,7 +22,7 @@ Installation
 ### Install Z3 Racket library
 
 - Set environment variable `Z3_LIB` to the *directory* containing the Z3 library.
-The library file is named `z3.dll`, `libz3.so` or `libz3.dylib`, depending on your system being Windows, Linux, or Mac, respectively.
+The library file is named `libz3.dll`, `libz3.so` or `libz3.dylib`, depending on your system being Windows, Linux, or Mac, respectively.
 
 - By default, at installation, the package parses the [latest documentation](http://research.microsoft.com/en-us/um/redmond/projects/z3/code/group__capi.html) over the internet and generates Z3 bindings from there. To customize the documentation to build from, you can:
   + Set environment variable `Z3_DOC_LOCAL` to a local file with the same format as the official documentation. If this is set, it takes priority over the next setting

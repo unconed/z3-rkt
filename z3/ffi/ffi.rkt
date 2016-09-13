@@ -339,7 +339,7 @@
       ([(lib-name default-dir)
         (case (system-type 'os)
           [(unix) (values "libz3.so" #f)]
-          [(windows) (values "z3.dll" #f)]
+          [(windows) (values "libz3.dll" #f)]
           [(macosx)
            (values "libz3.dylib"
                    ;; Homebrew puts it there
