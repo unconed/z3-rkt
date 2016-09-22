@@ -8,6 +8,7 @@
                      racket/syntax
                      syntax/parse)
          racket/match
+         racket/string
          racket/splicing
          "../ffi/main.rkt")
 
@@ -226,7 +227,12 @@
                        `(,arg-str : ,sort)))
            (mk-app ctx f-decl args)]
           [else
-           (error name "expect ~a arguments, given ~a" n num-xs)])))
+           (error name "expect ~a arguments, given ~a: ~a"
+                  n
+                  num-xs
+                  (string-join
+                   (for/list : (Listof String) ([x xs])
+                     (ast->string (get-context) (expr->_z3-ast x)))))])))
 
 (: make-symbol : (U Symbol String) → Z3-Symbol)
 ;; Helper function to make a symbol with the given name (Racket symbol)
