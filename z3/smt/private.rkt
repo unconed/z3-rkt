@@ -66,26 +66,28 @@
     (let ()
       (define cfg (mk-config))
       (define ctx (mk-context cfg))
+      (del-config! cfg)
       ;(printf "~n")
       (begin0 (with-context ctx
                 (with-new-solver
                   (with-new-environment
                     e ...)))
         ;(printf "~n")
-        (del-context! ctx)
-        (del-config! cfg))))
+        (del-context! ctx))))
 
   (define-syntax-rule (init-global-context!)
-    (let* ([ctx (mk-context (mk-config))]
+    (let* ([cfg (mk-config)]
+           [ctx (mk-context cfg)]
            [slvr (mk-solver ctx)]
            [nv (init-env ctx)])
+      (del-config! cfg)
       (solver-inc-ref! ctx slvr)
       (context ctx)
       (solver slvr)
       (env nv)))
 
   (define-syntax-rule (destroy-global-context!)
-    (let ([ctx (get-context)]) ; TODO: no del-config ...
+    (let ([ctx (get-context)])
       (solver-dec-ref! ctx (get-solver))
       (del-context! ctx)
       (context #f)
