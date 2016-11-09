@@ -327,22 +327,10 @@
   (syntax-parse stx
     [(_ c:id () T e)
      #'(begin
-       (declare-const c T)
-       (assert! (=/s c e)))]
+         (declare-const c T)
+         (assert! (=/s c e)))]
     [(_ f:id ([x:id Tx] ...) T e)
-     ;; FIXME: This can cause exponential blowup.
-     ;; But I can't figure out how to use `macro-finder` from C API for now
-     (define n (length (syntax->list #'(x ...))))
-     #`(begin
-         (define f : Smt-Func
-           (let ([m : (HashTable (Listof Smt-Expr) Z3-Ast) (make-hash)])
-             (match-lambda*
-               [(and xs (list x ...))
-                (hash-ref! m xs (λ () e))]
-               [xs
-                (error 'f "wrong arity. Expect ~a, given ~a arguments" #,n (length xs))])))
-         (set-fun! 'f f))
-     #;#'(begin
-       (smt:declare-fun f (Tx ...) T)
-       (smt:assert (∀/s ([x Tx] ...) (=/s (f x ...) e))))]))
-(define-simple-macro (define-const c:id T e) (define-fun c:id () T e))
+     #'(begin
+         (declare-fun f (Tx ...) T)
+         (assert! (∀/s ([x Tx] ...) (=/s (f x ...) e))))]))
+(define-simple-macro (define-const c:id T e) (define-fun c () T e))

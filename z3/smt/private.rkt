@@ -61,6 +61,11 @@
       (begin0 (with-solver solver e ...)
         (solver-dec-ref! ctx solver))))
 
+  (define (set-default-options!) : Void
+    (set-options! #:mbqi? #t
+                  #:macro-finder? #t
+                  #:rlimit 4000000))
+
   ;; Initializing a context requires resetting solver and environments
   (define-syntax-rule (with-new-context e ...)
     (let ()
@@ -71,6 +76,7 @@
       (begin0 (with-context ctx
                 (with-new-solver
                   (with-new-environment
+                    (set-default-options!)
                     e ...)))
         ;(printf "~n")
         (del-context! ctx))))
