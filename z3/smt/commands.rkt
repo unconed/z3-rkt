@@ -34,7 +34,9 @@
  set-options!
 
  define-fun
+ dynamic-define-fun
  define-const
+ dynamic-define-const
  )
 
 (require (for-syntax racket/base
@@ -334,3 +336,15 @@
          (declare-fun f (Tx ...) T)
          (assert! (∀/s ([x Tx] ...) (=/s (f x ...) e))))]))
 (define-simple-macro (define-const c:id T e) (define-fun c () T e))
+
+(define-syntax dynamic-define-fun
+  (syntax-parser
+    [(_ c () T e)
+     #'(begin
+         (dynamic-declare-const c T)
+         (assert! (=/s c e)))]
+    [(_ f ([x:id Tₓ] ...) Tₐ e)
+     #'(begin
+         (dynamic-declare-fun f (list Tₓ ...) Tₐ)
+         (assert! (∀/s ([x Tₓ] ...) (=/s (@/s f x ...) e))))]))
+(define-simple-macro (dynamic-define-const c T e) (dynamic-define-fun c () T e))
