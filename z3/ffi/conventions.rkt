@@ -55,7 +55,7 @@
 (: c-val->rkt ([String] [#:type (U 'pred 'bang #f)] . ->* . String))
 (define (c-val->rkt s #:type [type #f])
   (define base-pats
-    '([#px"^([[:alnum:]]+)_to_([[:alnum:]]+)$" "\\1->\\2"]
+    '([#px"^(.+)_to_(.+)$" "\\1->\\2"]
       [#rx"_" "-"]))
   (define pats
     (case type
@@ -63,4 +63,3 @@
       [(bang) (cons '[#rx"^(.+)$" "\\1!"] base-pats)]
       [(#f)   base-pats]))
   (assert (regexp-replaces s pats) string?))
-
