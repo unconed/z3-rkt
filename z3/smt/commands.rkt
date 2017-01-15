@@ -37,6 +37,9 @@
  dynamic-define-fun
  define-const
  dynamic-define-const
+
+ get-context
+ get-solver
  )
 
 (require (for-syntax racket/base
