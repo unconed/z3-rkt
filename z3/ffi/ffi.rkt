@@ -366,5 +366,5 @@
                            [(getenv "Z3_DOC_HTTP" ) => (gen-from-http stx)]
                            [else
                             ((gen-from-http stx)
-                             "http://research.microsoft.com/en-us/um/redmond/projects/z3/code/group__capi.html")]))])
+                             "https://z3prover.github.io/api/html/group__capi.html")]))])
   (do-it!))
