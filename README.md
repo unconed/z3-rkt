@@ -9,7 +9,7 @@ I originally forked from Siddharth Agarwal's repository ([sid0/z3.rkt](https://g
 * migrated from the deprecated API to the new Solver API
 * ditched all deprecated functions
 * generalized SMT constructs like `declare-datatypes`, `forall/s`, `exists/s`
-* added macro-expansion time scraping of the documentation to automatically generate all FFI bindings (ish) and Typed Racket bindings
+* ~~added macro-expansion time scraping of the documentation to automatically generate all FFI bindings (ish) and Typed Racket bindings~~
 
 
 Installation
@@ -24,9 +24,9 @@ Installation
 - Set environment variable `Z3_LIB` to the *directory* containing the Z3 library.
 The library file is named `libz3.dll`, `libz3.so` or `libz3.dylib`, depending on your system being Windows, Linux, or Mac, respectively.
 
-- By default, at installation, the package parses the [latest documentation](http://research.microsoft.com/en-us/um/redmond/projects/z3/code/group__capi.html) over the internet and generates Z3 bindings from there. To customize the documentation to build from, you can:
-  + Set environment variable `Z3_DOC_LOCAL` to a local file with the same format as the official documentation. If this is set, it takes priority over the next setting
-  + Set environment variable `Z3_DOC_HTTP` to an alternate HTTP link to the documentation
+- ~~By default, at installation, the package parses the [latest documentation](http://research.microsoft.com/en-us/um/redmond/projects/z3/code/group__capi.html) over the internet and generates Z3 bindings from there. To customize the documentation to build from, you can:~~
+  + ~~Set environment variable `Z3_DOC_LOCAL` to a local file with the same format as the official documentation. If this is set, it takes priority over the next setting~~
+  + ~~Set environment variable `Z3_DOC_HTTP` to an alternate HTTP link to the documentation~~
 
 - Install Z3 bindings:
 > raco pkg install z3
@@ -39,15 +39,11 @@ The library file is named `libz3.dll`, `libz3.so` or `libz3.dylib`, depending on
 The API
 ----------
 
-* [`z3/ffi`](https://github.com/philnguyen/z3.rkt/tree/master/z3/ffi)
+* [`z3/ffi`](https://github.com/philnguyen/z3-rkt/blob/master/z3/ffi/ffi-typed.rkt)
   defines bindings for low-level Z3 API.
-  The interface is automatically generated at compile-time from the
-  [documentation](http://research.microsoft.com/en-us/um/redmond/projects/z3/code/group__capi.html).
-  An example of generated Typed Racket bindings is in
-  [snapshot/main.rkt](https://github.com/philnguyen/z3-rkt/blob/master/snapshot/main.rkt),
-  with (untyped) FFI bindings in
-  [snapshot/ffi.rkt](https://github.com/philnguyen/z3-rkt/blob/master/snapshot/ffi.rkt).
-  The low-level Racket interface differs from C in a predictable way:
+  The interface was originally generated from the
+  [documentation](https://z3prover.github.io/api/html/group__capi.html).
+  The [low-level Racket interface](https://github.com/philnguyen/z3-rkt/blob/master/z3/ffi/ffi.rkt) differs from C in a predictable way:
   
   | C                                                                       | Racket
   |-------------------------------------------------------------------------|----------------------------------------
@@ -69,6 +65,7 @@ TODO
 - [ ] Scribble?
 - [x] Figure out package name
 - [x] Figure out how to make package and register
+- [ ] generate the typed wrapper automatically instead of having 2 version in sync currently
 
 Known issues
 -------------
@@ -76,6 +73,9 @@ Known issues
 - A minority of functions allow `null` arguments as valid use cases,
   which is mentioned in prose in the doc.
   I'm just hacking special cases that I need instead of flooding the API with `null`s.
+- The bindings were originally generated automatically,
+  and all names with `-to-` were converted to `->`.
+  While most of them are appropriate, some of them aren't.
 
 License
 -------
