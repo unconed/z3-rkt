@@ -3,7 +3,10 @@
 (provide define-z3)
 
 (require ffi/unsafe
-         syntax/parse/define)
+         syntax/parse/define
+         (for-syntax racket/base
+                     racket/syntax
+                     syntax/parse))
 
 (define libz3
   (let-values
@@ -28,5 +31,21 @@
               Z3_LIB
               lib-name)])))
 
-(define-simple-macro (define-z3 x:id c-name:str t)
-  (define x (get-ffi-obj c-name libz3 t)))
+(begin-for-syntax
+  (define-syntax-class z3-vsn
+    #:description "Z3 version string of form major.minor.revision"
+    (pattern v:id #:when (regexp-match? #rx"^[0-9]+\\.[0-9]+\\.[0-9]$"
+                                        (symbol->string (syntax-e #'v))))))
+
+
+(define-syntax-parser define-z3
+  [(_ x:id c-name:str t
+      (~optional (~seq #:min-api api:z3-vsn) #:defaults ([api #'#f])))
+   (cond
+     [(syntax-e #'api)
+      #'(define x (get-ffi-obj c-name libz3 t
+                               (λ ()
+                                 (log-warning "Cannot find symbol `~a` in Z3 library. Generating dummy binding.")
+                                 (λ _ (error 'x "requires Z3 >= ~a" 'api)))))]
+     [else
+      #'(define x (get-ffi-obj c-name libz3 t))])])
