@@ -37,15 +37,30 @@
     (pattern v:id #:when (regexp-match? #rx"^[0-9]+\\.[0-9]+\\.[0-9]$"
                                         (symbol->string (syntax-e #'v))))))
 
-
 (define-syntax-parser define-z3
   [(_ x:id c-name:str t
-      (~optional (~seq #:min-api api:z3-vsn) #:defaults ([api #'#f])))
+      ;; If the api is absent, the user will get back a function that fails when invoked.
+      ;; The `min-api` and/or `max-api` tags here only for an informative error message
+      ;; instructing the user to get the appropriate Z3 version.
+      (~optional (~seq #:min-api min-api:z3-vsn) #:defaults ([min-api #'#f]))
+      (~optional (~seq #:max-api max-api:z3-vsn) #:defaults ([max-api #'#f])))
+   (define lo (syntax-e #'min-api))
+   (define hi (syntax-e #'max-api))
    (cond
-     [(syntax-e #'api)
+     [(or lo hi)
+      (define/with-syntax get-version (format-id #'x "get-version"))
+      (define/with-syntax msg
+        (string-append (format "`~a` needs Z3 " (syntax-e #'x))
+                       (cond [(and lo hi) (format "not befor ~a and not after ~a" lo hi)]
+                             [lo          (format "not before ~a" lo)]
+                             [else        (format "not after ~a" hi)])))
       #'(define x (get-ffi-obj c-name libz3 t
                                (λ ()
-                                 (log-warning "Cannot find symbol `~a` in Z3 library. Generating dummy binding.")
-                                 (λ _ (error 'x "requires Z3 >= ~a" 'api)))))]
+                                 ;; It's not yet safe to invoke `get-version` here
+                                 ;; unless `get-version` is guaranteed to have been genereated.
+                                 (log-warning "~a. Generating dummy binding." msg)
+                                 (λ _
+                                   (define-values (major minor build _) (get-version))
+                                   (error 'x "~a. Detected version is ~a.~a.~a" msg major minor build)))))]
      [else
       #'(define x (get-ffi-obj c-name libz3 t))])])
