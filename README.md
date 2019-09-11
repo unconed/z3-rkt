@@ -1,9 +1,18 @@
-[![Build Status](https://travis-ci.org/philnguyen/z3-rkt.svg?branch=master)](https://travis-ci.org/philnguyen/z3-rkt) Z3 library for Racket
+Z3 library for Racket
 ================================
 
 This package provides an implementation of Z3 in Racket.
-Although I develop it specifically for use in my symbolic execution,
-it should be usable for general-purpose Racket SMT integration.
+
+**This repo was forked to allow use of Z3 Optimize APIs instead of Z3 Solver APIs.**
+
+**All assertions and state changes are realized via `Z3_optimize_...` instead of `Z3_solver_...`**.
+
+
+### Original Notes
+
+Forked from https://github.com/philnguyen/z3-rkt .
+
+Although I develop it specifically for use in my symbolic execution, it should be usable for general-purpose Racket SMT integration.
 I originally forked from Siddharth Agarwal's repository ([sid0/z3.rkt](https://github.com/sid0/z3.rkt)), then:
 * ported the package to Typed Racket
 * migrated from the deprecated API to the new Solver API

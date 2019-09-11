@@ -729,7 +729,13 @@
 (define-z3 goal-dec-ref! "Z3_goal_dec_ref" (_fun _z3-context _z3-goal -> _void))
 (define-z3 mk-bvuge "Z3_mk_bvuge" (_fun _z3-context _z3-ast _z3-ast -> _z3-ast))
 (define-z3 mk-bv-sort "Z3_mk_bv_sort" (_fun _z3-context _uint -> _z3-sort))
-(define-z3 optimize-check "Z3_optimize_check" (_fun _z3-context _z3-optimize -> _z3-lbool))
+(define-z3 optimize-check "Z3_optimize_check"
+  (_fun (c o assumptions) ::
+   (c : _z3-context)
+   (o : _z3-optimize)
+   (num-assumptions : _uint = (length assumptions))
+   (assumptions : (_list i _z3-ast))
+   -> _z3-lbool))
 (define-z3 rcf-num->decimal-string "Z3_rcf_num_to_decimal_string" (_fun _z3-context _z3-rcf-num _uint -> _string))
 (define-z3 mk-fpa->fp-signed "Z3_mk_fpa_to_fp_signed" (_fun _z3-context _z3-ast _z3-ast _z3-sort -> _z3-ast))
 (define-z3 goal->string "Z3_goal_to_string" (_fun _z3-context _z3-goal -> _string))
@@ -943,6 +949,7 @@
 (define-z3 optimize-get-lower "Z3_optimize_get_lower" (_fun _z3-context _z3-optimize _uint -> _z3-ast))
 (define-z3 get-quantifier-bound-sort "Z3_get_quantifier_bound_sort" (_fun _z3-context _z3-ast _uint -> _z3-sort))
 (define-z3 solver-get-assertions "Z3_solver_get_assertions" (_fun _z3-context _z3-solver -> _z3-ast-vector))
+(define-z3 optimize-get-assertions "Z3_optimize_get_assertions" (_fun _z3-context _z3-optimize -> _z3-ast-vector))
 (define-z3 mk-fpa-round-toward-negative "Z3_mk_fpa_round_toward_negative" (_fun _z3-context -> _z3-ast))
 (define-z3 get-error-code "Z3_get_error_code" (_fun _z3-context -> _z3-error-code))
 (define-z3 mk-bvsge "Z3_mk_bvsge" (_fun _z3-context _z3-ast _z3-ast -> _z3-ast))

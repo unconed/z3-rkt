@@ -40,33 +40,31 @@
                   (parameterize ([param x]) e (... ...)))))]))
      )
   
-  (define-z3-parameter context : Z3-Context)
-  (define-z3-parameter solver  : Z3-Solver)
-  (define-z3-parameter env     : Env)
+  (define-z3-parameter context  : Z3-Context)
+  (define-z3-parameter optimize : Z3-Optimize)
+  (define-z3-parameter env      : Env)
   
-  (define get-context raw:get-context)
-  (define get-solver  raw:get-solver)
-  (define get-env     raw:get-env)
+  (define get-context  raw:get-context)
+  (define get-optimize raw:get-optimize)
+  (define get-env      raw:get-env)
   
   ;; Initializing environment does not require resetting anything else
   (define-syntax-rule (with-new-environment e ...)
     (with-env (init-env (get-context))
       e ...))
 
-  ;; Initializing solver does not require resetting anything else
-  (define-syntax-rule (with-new-solver e ...)
+  ;; Initializing optimize does not require resetting anything else
+  (define-syntax-rule (with-new-optimize e ...)
     (let* ([ctx (get-context)]
-           [solver (mk-solver ctx)])
-      (solver-inc-ref! ctx solver)
-      (begin0 (with-solver solver e ...)
-        (solver-dec-ref! ctx solver))))
+           [optimize (mk-optimize ctx)])
+      (optimize-inc-ref! ctx optimize)
+      (begin0 (with-optimize optimize e ...)
+        (optimize-dec-ref! ctx optimize))))
 
   (define (set-default-options!) : Void
-    (set-options! #:mbqi? #t
-                  #:macro-finder? #t
-                  #:rlimit 4000000))
+    (set-options! #:rlimit 4000000))
 
-  ;; Initializing a context requires resetting solver and environments
+  ;; Initializing a context requires resetting optimize and environments
   (define-syntax-rule (with-new-context e ...)
     (let ()
       (define cfg (mk-config))
@@ -74,7 +72,7 @@
       (del-config! cfg)
       ;(printf "~n")
       (begin0 (with-context ctx
-                (with-new-solver
+                (with-new-optimize
                   (with-new-environment
                     (set-default-options!)
                     e ...)))
@@ -84,20 +82,20 @@
   (define-syntax-rule (init-global-context!)
     (let* ([cfg (mk-config)]
            [ctx (mk-context cfg)]
-           [slvr (mk-solver ctx)]
+           [opt (mk-optimize ctx)]
            [nv (init-env ctx)])
       (del-config! cfg)
-      (solver-inc-ref! ctx slvr)
+      (optimize-inc-ref! ctx opt)
       (context ctx)
-      (solver slvr)
+      (optimize opt)
       (env nv)))
 
   (define-syntax-rule (destroy-global-context!)
     (let ([ctx (get-context)])
-      (solver-dec-ref! ctx (get-solver))
+      (optimize-dec-ref! ctx (get-optimize))
       (del-context! ctx)
       (context #f)
-      (solver #f)
+      (optimize #f)
       (env #f)))
 
   (define-syntax-rule (with-extended-vals new-vals e ...)
@@ -173,19 +171,20 @@
   (set-Env-vals!      env (hasheq))
   (set-Env-funs!      env (hasheq))
   (set-Env-sorts!     env (hasheq))
-  (set-Env-sort-funs! env (hasheq))
-  (solver-reset! ctx (get-solver)))
+  (set-Env-sort-funs! env (hasheq)))
+  ; not implemented in Z3
+  ;(optimize-reset! ctx (get-optimize)))
 
 (define-syntax-rule (with-local-stack e ...)
   (match-let ([ctx (get-context)]
-              [solver (get-solver)]
+              [optimize (get-optimize)]
               [(Env vals funs sorts sort-funs) (get-env)])
     (begin0
         (let ()
-          (solver-push! ctx solver)
+          (optimize-push! ctx optimize)
           (with-env (Env vals funs sorts sort-funs) ; copied environment
             e ...))
-      (solver-pop! ctx solver 1))))
+      (optimize-pop! ctx optimize 1))))
 
 ;; Given an expr, convert it to a Z3 AST. This is a really simple recursive descent parser.
 ;; PN: This no longer is a parser. It only coerces some base values now
@@ -487,7 +486,7 @@
                 [(fixnum? v)       (params-set-uint!   c prms k-sym v)]
                 [(flonum? v)       (params-set-double! c prms k-sym v)]
                 [else              (params-set-symbol! c prms k-sym (make-symbol v))]))
-        (solver-set-params! c (get-solver) prms)
+        (optimize-set-params! c (get-optimize) prms)
         (params-dec-ref! c prms)))
     
     (make-set-options-procedure raw:set-options!)))

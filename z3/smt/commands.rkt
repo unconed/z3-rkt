@@ -39,7 +39,7 @@
  dynamic-define-const
 
  get-context
- get-solver
+ get-optimize
  )
 
 (require (for-syntax racket/base
@@ -51,6 +51,7 @@
          racket/match
          racket/syntax
          racket/string
+         racket/list
          syntax/parse/define
          "../ffi/main.rkt"
          "private.rkt"
@@ -264,19 +265,19 @@
 
 (: assert! : Smt-Expr → Void)
 (define (assert! e)
-  (solver-assert! (get-context) (get-solver) (expr->_z3-ast e)))
+  (optimize-assert! (get-context) (get-optimize) (expr->_z3-ast e)))
 
 (: check-sat : → Smt-Sat)
 (define (check-sat)
-  (case (solver-check (get-context) (get-solver))
+  (case (optimize-check (get-context) (get-optimize) empty)
     [(l-true) 'sat]
     [(l-false) 'unsat]
     [(l-undef) 'unknown]))
 
 (: check-sat/model : → (U Z3-Model 'unsat 'unknown))
 (define (check-sat/model)
-  (case (solver-check (get-context) (get-solver))
-    [(l-true) (solver-get-model (get-context) (get-solver))]
+  (case (optimize-check (get-context) (get-optimize) empty)
+    [(l-true) (optimize-get-model (get-context) (get-optimize))]
     [(l-false) 'unsat]
     [(l-undef) 'unknown]))
 
@@ -287,8 +288,8 @@
 (: get-stats : → (HashTable Symbol (U Inexact-Real Nonnegative-Fixnum)))
 (define (get-stats)
   (define ctx (get-context))
-  (define solver (get-solver))
-  (define stats (solver-get-statistics ctx solver))
+  (define optimize (get-optimize))
+  (define stats (optimize-get-statistics ctx optimize))
   (begin0
       (begin
         (stats-inc-ref! ctx stats)
@@ -305,14 +306,14 @@
 (: print-current-assertions : → Void)
 (define (print-current-assertions)
   (define ctx (get-context))
-  (define assertions (solver-get-assertions ctx (get-solver)))
+  (define assertions (optimize-get-assertions ctx (get-optimize)))
   (for ([i (ast-vector-size ctx assertions)])
     (printf "~a~n" (ast->string ctx (ast-vector-get ctx assertions i)))))
 
 (: get-param-descriptions : → (HashTable Symbol Z3-Param-Kind))
 (define (get-param-descriptions)
   (define c (get-context))
-  (define pd (solver-get-param-descrs c (get-solver)))
+  (define pd (optimize-get-param-descrs c (get-optimize)))
   (param-descrs-inc-ref! c pd)
   (begin0
       (for/hasheq : (HashTable Symbol Z3-Param-Kind) ([i (param-descrs-size c pd)])
